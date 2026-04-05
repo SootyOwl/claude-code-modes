@@ -1,0 +1,12 @@
+{
+  "name": "claude-mode",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build-prompt": "bun run src/build-prompt.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
