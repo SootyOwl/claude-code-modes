@@ -13,6 +13,18 @@ import type { ModeConfig, TemplateVars } from "./types.js";
 
 const PROMPTS_DIR = join(import.meta.dir, "..", "prompts");
 
+const TEST_VARS: TemplateVars = {
+  CWD: "/test/project",
+  IS_GIT: "true",
+  PLATFORM: "linux",
+  SHELL: "bash",
+  OS_VERSION: "Linux 6.0",
+  MODEL_NAME: "Claude Opus 4.6",
+  MODEL_ID: "claude-opus-4-6",
+  KNOWLEDGE_CUTOFF: "May 2025",
+  GIT_STATUS: "Current branch: main\n\nStatus:\n(clean)",
+};
+
 describe("readFragment", () => {
   test("reads existing fragment", () => {
     const content = readFragment(PROMPTS_DIR, "base/intro.md");
@@ -27,37 +39,25 @@ describe("readFragment", () => {
 });
 
 describe("substituteTemplateVars", () => {
-  const vars: TemplateVars = {
-    CWD: "/test",
-    IS_GIT: "true",
-    PLATFORM: "linux",
-    SHELL: "bash",
-    OS_VERSION: "Linux 6.0",
-    MODEL_NAME: "Test Model",
-    MODEL_ID: "test-model-1",
-    KNOWLEDGE_CUTOFF: "January 2025",
-    GIT_STATUS: "clean",
-  };
-
   test("replaces all template variables", () => {
-    const result = substituteTemplateVars("Dir: {{CWD}}, Shell: {{SHELL}}", vars);
-    expect(result).toBe("Dir: /test, Shell: bash");
+    const result = substituteTemplateVars("Dir: {{CWD}}, Shell: {{SHELL}}", TEST_VARS);
+    expect(result).toBe("Dir: /test/project, Shell: bash");
   });
 
   test("replaces multiple occurrences of same variable", () => {
-    const result = substituteTemplateVars("{{CWD}} and {{CWD}}", vars);
-    expect(result).toBe("/test and /test");
+    const result = substituteTemplateVars("{{CWD}} and {{CWD}}", TEST_VARS);
+    expect(result).toBe("/test/project and /test/project");
   });
 
   test("throws on unreplaced variables", () => {
-    expect(() => substituteTemplateVars("{{UNKNOWN_VAR}}", vars)).toThrow(
+    expect(() => substituteTemplateVars("{{UNKNOWN_VAR}}", TEST_VARS)).toThrow(
       "Unreplaced template variables"
     );
   });
 
   test("does not throw when all variables are replaced", () => {
     expect(() =>
-      substituteTemplateVars("{{CWD}} {{PLATFORM}}", vars)
+      substituteTemplateVars("{{CWD}} {{PLATFORM}}", TEST_VARS)
     ).not.toThrow();
   });
 });
@@ -136,22 +136,10 @@ describe("getFragmentOrder", () => {
 });
 
 describe("assemblePrompt", () => {
-  const vars: TemplateVars = {
-    CWD: "/test/project",
-    IS_GIT: "true",
-    PLATFORM: "linux",
-    SHELL: "bash",
-    OS_VERSION: "Linux 6.0",
-    MODEL_NAME: "Claude Opus 4.6",
-    MODEL_ID: "claude-opus-4-6",
-    KNOWLEDGE_CUTOFF: "May 2025",
-    GIT_STATUS: "Current branch: main\n\nStatus:\n(clean)",
-  };
-
   test("assembles none mode without errors", () => {
     const result = assemblePrompt({
       mode: { axes: null, modifiers: { readonly: false } },
-      templateVars: vars,
+      templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
     expect(result.length).toBeGreaterThan(0);
@@ -160,7 +148,7 @@ describe("assemblePrompt", () => {
   test("assembled prompt has no unreplaced template variables", () => {
     const result = assemblePrompt({
       mode: { axes: null, modifiers: { readonly: false } },
-      templateVars: vars,
+      templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
     expect(result).not.toMatch(/\{\{[A-Z_]+\}\}/);
@@ -169,7 +157,7 @@ describe("assemblePrompt", () => {
   test("assembled prompt contains key sections", () => {
     const result = assemblePrompt({
       mode: { axes: null, modifiers: { readonly: false } },
-      templateVars: vars,
+      templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
     expect(result).toContain("Claude Code");
@@ -187,7 +175,7 @@ describe("assemblePrompt", () => {
         axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
         modifiers: { readonly: false },
       },
-      templateVars: vars,
+      templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
     expect(result.length).toBeGreaterThan(0);

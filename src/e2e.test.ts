@@ -1,30 +1,11 @@
 import { describe, test, expect } from "bun:test";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { createCliRunner } from "./test-helpers.js";
+import { PRESET_NAMES } from "./types.js";
 
-const SCRIPT = join(import.meta.dir, "..", "claude-mode");
-const PROJECT_ROOT = join(import.meta.dir, "..");
-
-function run(args: string): string {
-  return execSync(`${SCRIPT} ${args}`, {
-    encoding: "utf8",
-    timeout: 15000,
-    cwd: PROJECT_ROOT,
-  }).trim();
-}
-
-function runExpectFail(args: string): string {
-  try {
-    execSync(`${SCRIPT} ${args}`, {
-      encoding: "utf8",
-      timeout: 15000,
-      cwd: PROJECT_ROOT,
-    });
-    throw new Error("Expected command to fail");
-  } catch (err: any) {
-    return (err.stderr || err.message || "").toString();
-  }
-}
+const { run, runExpectFail } = createCliRunner(
+  join(import.meta.dir, "..", "claude-mode"),
+);
 
 describe("claude-mode e2e", () => {
   // Help and usage
@@ -90,14 +71,14 @@ describe("claude-mode e2e", () => {
 
   // All presets include universal sections
   test("all presets include context pacing", () => {
-    for (const preset of ["new-project", "vibe-extend", "safe-small", "refactor", "explore", "none"]) {
+    for (const preset of PRESET_NAMES) {
       const output = run(`${preset} --print`);
       expect(output).toContain("# Context and pacing");
     }
   });
 
   test("all presets include environment section", () => {
-    for (const preset of ["new-project", "vibe-extend", "safe-small", "refactor", "explore", "none"]) {
+    for (const preset of PRESET_NAMES) {
       const output = run(`${preset} --print`);
       expect(output).toContain("# Environment");
       expect(output).toContain(process.cwd());
@@ -145,7 +126,7 @@ describe("claude-mode e2e", () => {
 
   // No template variable leaks in any mode
   test("no unreplaced template variables in any preset", () => {
-    for (const preset of ["new-project", "vibe-extend", "safe-small", "refactor", "explore", "none"]) {
+    for (const preset of PRESET_NAMES) {
       const output = run(`${preset} --print`);
       expect(output).not.toMatch(/\{\{[A-Z_]+\}\}/);
     }

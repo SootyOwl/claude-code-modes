@@ -21,6 +21,19 @@ export interface ParsedArgs {
   passthroughArgs: string[];
 }
 
+function validateAxisValue<T extends string>(
+  value: unknown,
+  validValues: readonly T[],
+  flagName: string,
+): T {
+  if (!(validValues as readonly string[]).includes(value as string)) {
+    throw new Error(
+      `Invalid --${flagName} value: "${value}". Must be one of: ${validValues.join(", ")}`
+    );
+  }
+  return value as T;
+}
+
 export function parseCliArgs(argv: string[]): ParsedArgs {
   // Split at -- separator
   const dashDashIdx = argv.indexOf("--");
@@ -67,28 +80,13 @@ export function parseCliArgs(argv: string[]): ParsedArgs {
   // Validate axis overrides
   const overrides: ParsedArgs["overrides"] = {};
   if (values.agency !== undefined) {
-    if (!AGENCY_VALUES.includes(values.agency as Agency)) {
-      throw new Error(
-        `Invalid --agency value: "${values.agency}". Must be one of: ${AGENCY_VALUES.join(", ")}`
-      );
-    }
-    overrides.agency = values.agency as Agency;
+    overrides.agency = validateAxisValue(values.agency, AGENCY_VALUES, "agency");
   }
   if (values.quality !== undefined) {
-    if (!QUALITY_VALUES.includes(values.quality as Quality)) {
-      throw new Error(
-        `Invalid --quality value: "${values.quality}". Must be one of: ${QUALITY_VALUES.join(", ")}`
-      );
-    }
-    overrides.quality = values.quality as Quality;
+    overrides.quality = validateAxisValue(values.quality, QUALITY_VALUES, "quality");
   }
   if (values.scope !== undefined) {
-    if (!SCOPE_VALUES.includes(values.scope as Scope)) {
-      throw new Error(
-        `Invalid --scope value: "${values.scope}". Must be one of: ${SCOPE_VALUES.join(", ")}`
-      );
-    }
-    overrides.scope = values.scope as Scope;
+    overrides.scope = validateAxisValue(values.scope, SCOPE_VALUES, "scope");
   }
 
   // Collect unknown flags for passthrough

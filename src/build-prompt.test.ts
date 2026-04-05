@@ -1,30 +1,12 @@
 import { describe, test, expect } from "bun:test";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { createCliRunner } from "./test-helpers.js";
 
-const BUILD_PROMPT = join(import.meta.dir, "build-prompt.ts");
-
-function run(args: string): string {
-  return execSync(`bun run ${BUILD_PROMPT} ${args}`, {
-    encoding: "utf8",
-    timeout: 10000,
-    cwd: join(import.meta.dir, ".."),
-  }).trim();
-}
-
-function runExpectFail(args: string): string {
-  try {
-    execSync(`bun run ${BUILD_PROMPT} ${args}`, {
-      encoding: "utf8",
-      timeout: 10000,
-      cwd: join(import.meta.dir, ".."),
-    });
-    throw new Error("Expected command to fail");
-  } catch (err: any) {
-    return err.stderr?.toString() || err.message;
-  }
-}
+const { run, runExpectFail } = createCliRunner(
+  `bun run ${join(import.meta.dir, "build-prompt.ts")}`,
+  10000,
+);
 
 describe("build-prompt CLI", () => {
   test("no args prints usage", () => {

@@ -2,60 +2,31 @@ import { execSync } from "node:child_process";
 import { basename } from "node:path";
 import type { EnvInfo, TemplateVars } from "./types.js";
 
+function exec(command: string): string | null {
+  try {
+    return execSync(command, { encoding: "utf8", timeout: 5000 }).trim();
+  } catch {
+    return null;
+  }
+}
+
 export function detectEnv(): EnvInfo {
   const cwd = process.cwd();
-
-  let isGit = false;
-  try {
-    const result = execSync("git rev-parse --is-inside-work-tree 2>/dev/null", {
-      encoding: "utf8",
-      timeout: 5000,
-    }).trim();
-    isGit = result === "true";
-  } catch {
-    isGit = false;
-  }
+  const isGit = exec("git rev-parse --is-inside-work-tree 2>/dev/null") === "true";
 
   let gitBranch: string | null = null;
   let gitStatus: string | null = null;
   let gitLog: string | null = null;
 
   if (isGit) {
-    try {
-      gitBranch = execSync("git branch --show-current", {
-        encoding: "utf8",
-        timeout: 5000,
-      }).trim();
-    } catch {
-      gitBranch = null;
-    }
-
-    try {
-      gitStatus = execSync("git status --short", {
-        encoding: "utf8",
-        timeout: 5000,
-      }).trim();
-    } catch {
-      gitStatus = null;
-    }
-
-    try {
-      gitLog = execSync("git log --oneline -5", {
-        encoding: "utf8",
-        timeout: 5000,
-      }).trim();
-    } catch {
-      gitLog = null;
-    }
+    gitBranch = exec("git branch --show-current");
+    gitStatus = exec("git status --short");
+    gitLog = exec("git log --oneline -5");
   }
 
-  const platform = execSync("uname -s", { encoding: "utf8", timeout: 5000 })
-    .trim()
-    .toLowerCase();
-
+  const platform = exec("uname -s")?.toLowerCase() ?? "unknown";
   const shell = basename(process.env.SHELL || "bash");
-
-  const osVersion = execSync("uname -sr", { encoding: "utf8", timeout: 5000 }).trim();
+  const osVersion = exec("uname -sr") ?? "unknown";
 
   return { cwd, isGit, gitBranch, gitStatus, gitLog, platform, shell, osVersion };
 }
