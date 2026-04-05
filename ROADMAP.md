@@ -1,4 +1,4 @@
-# claude-mode — Roadmap
+# claude-code-modes — Roadmap
 
 Solo AI-assisted build. Phases are chunky — each completable in one session. Full test suite throughout.
 

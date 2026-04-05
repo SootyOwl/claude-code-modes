@@ -1,6 +1,6 @@
 # Prompt Audit
 
-Audit of Claude Code's default system prompt behavioral instructions. Each instruction is classified by how `claude-mode` handles it across modes.
+Audit of Claude Code's default system prompt behavioral instructions. Each instruction is classified by how `claude-code-modes` handles it across modes.
 
 **Source:** `claude-code/src/constants/prompts.ts` (version as of Claude Code 2.1.92)
 

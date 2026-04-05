@@ -136,7 +136,7 @@ const gitLog = execSync('git log --oneline -5').toString().trim()
 ## File Structure
 
 ```
-claude-mode/
+claude-code-modes/
 ├── claude-mode                    # bash entry point (~5 lines)
 ├── package.json
 ├── tsconfig.json

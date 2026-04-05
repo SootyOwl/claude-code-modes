@@ -1,7 +1,10 @@
 {
-  "name": "claude-mode",
+  "name": "claude-code-modes",
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "claude-mode": "./claude-mode"
+  },
   "scripts": {
     "build-prompt": "bun run src/build-prompt.ts",
     "test": "bun test"

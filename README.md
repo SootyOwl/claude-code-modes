@@ -1,34 +1,37 @@
-# claude-mode
+# claude-code-modes
 
-A CLI wrapper that launches [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with behaviorally-tuned system prompts. Instead of one-size-fits-all defaults, choose how Claude approaches your task.
+Take control of how Claude Code behaves. The default system prompt is a one-size-fits-all compromise — it makes Claude cautious, minimal, and terse in situations where you actually want it to be bold, thorough, and opinionated. This tool fixes that.
 
-## The Problem
+`claude-mode` is a CLI wrapper that launches Claude Code with a replacement system prompt. It keeps everything Claude Code needs to function (tool instructions, security, environment detection) and swaps out the behavioral layer — the part that controls how much initiative Claude takes, what code quality standard it targets, and how far beyond your request it's willing to go.
 
-Claude Code's default system prompt is a compromise. Instructions that make Claude careful and minimal during a surgical bug fix actively prevent it from building proper abstractions in a new project. Instructions that suppress verbose output hurt exploration sessions.
-
-`claude-mode` replaces the behavioral layer of the system prompt while preserving everything else — tool instructions, security guidelines, environment info — intact.
-
-## Quick Start
+## Install
 
 ```bash
-# Clone and install
-git clone https://github.com/nklisch/claude-mode.git
-cd claude-mode
+git clone https://github.com/nklisch/claude-code-modes.git
+cd claude-code-modes
 bun install
-
-# Use a preset
-./claude-mode new-project      # Build from scratch with proper architecture
-./claude-mode vibe-extend      # Extend a fast-built project, improve incrementally
-./claude-mode safe-small       # Surgical precision, minimal risk
-./claude-mode refactor         # Restructure freely across the codebase
-./claude-mode explore          # Read-only — understand code without changing it
-./claude-mode none             # No behavioral opinions — bring your own via CLAUDE.md
-
-# Symlink into PATH for global access
-ln -s "$(pwd)/claude-mode" ~/.local/bin/claude-mode
+bun link        # adds `claude-mode` to your PATH
 ```
 
-## Presets
+Requires [Bun](https://bun.sh/) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude` on your PATH).
+
+> **Alternative:** symlink manually if `bun link` doesn't work for your setup:
+> ```bash
+> ln -s "$(pwd)/claude-mode" ~/.local/bin/claude-mode
+> ```
+
+## Usage
+
+Pick a preset that matches your task:
+
+```bash
+claude-mode new-project      # Build from scratch with proper architecture
+claude-mode vibe-extend      # Extend a fast-built project, improve incrementally
+claude-mode safe-small       # Surgical precision, minimal risk
+claude-mode refactor         # Restructure freely across the codebase
+claude-mode explore          # Read-only — understand code without changing it
+claude-mode none             # Strip all behavioral opinions, use your own CLAUDE.md
+```
 
 | Preset | Agency | Quality | Scope | Use when... |
 |---|---|---|---|---|
@@ -39,26 +42,39 @@ ln -s "$(pwd)/claude-mode" ~/.local/bin/claude-mode
 | `explore` | collaborative | architect | narrow | Read, explain, suggest — no file modifications |
 | `none` | — | — | — | Strip all behavioral instructions, use your own |
 
-## The Axis Model
+## What problems does this solve?
 
-Presets are shortcuts. Underneath, behavior is composed from three independent axes:
+Claude Code's default prompt tells Claude to:
+- Be minimal and make the smallest possible change (bad when you're building something new)
+- Ask before doing things (bad when you want it to just build)
+- Keep output short and terse (bad when you want it to explain its reasoning)
+- Stay narrowly scoped (bad when a refactor needs to touch related files)
 
-**Agency** — How much initiative?
-- `autonomous` — Makes decisions, creates files, restructures without asking
-- `collaborative` — Explains reasoning, checks in at decision points
-- `surgical` — Executes exactly what was asked, nothing more
+These defaults are sensible for some tasks but actively harmful for others. Rather than fighting Claude through your CLAUDE.md, `claude-mode` replaces the instructions that cause the behavior.
 
-**Quality** — What code standard?
-- `architect` — Proper abstractions, error handling, forward-thinking structure
-- `pragmatic` — Match existing patterns, improve incrementally
-- `minimal` — Smallest correct change, no speculative improvements
+## How it works
 
-**Scope** — How far beyond the request?
-- `unrestricted` — Free to create, reorganize, restructure
-- `adjacent` — Fix related issues in the neighborhood
-- `narrow` — Only what was explicitly asked
+Claude Code supports `--system-prompt-file` which replaces its entire system prompt. `claude-mode` uses this to swap in a prompt assembled from markdown fragments:
 
-### Custom Compositions
+```
+prompts/
+  base/         Infrastructure prompts (tools, security, env detection)
+  axis/         Behavioral prompts organized by three axes
+  modifiers/    Optional additions (readonly, context pacing)
+```
+
+The behavioral layer is composed from three independent axes — **agency** (how much initiative), **quality** (what code standard), and **scope** (how far beyond the request). Presets are just named combinations of these three values.
+
+When you run `claude-mode new-project`, the tool:
+1. Resolves the preset to axis values (autonomous / architect / unrestricted)
+2. Reads the base infrastructure fragments + the matching axis fragments
+3. Detects your environment (git status, platform, shell)
+4. Writes the assembled prompt to a temp file
+5. Execs `claude --system-prompt-file /tmp/claude-mode-xxx.md` with your TTY
+
+The bash script `exec`s the final command so Claude Code gets direct TTY ownership — no wrapper process sitting in between.
+
+## Customizing
 
 Override any axis from a preset:
 
@@ -67,52 +83,52 @@ claude-mode new-project --quality pragmatic     # Architect structure, pragmatic
 claude-mode safe-small --scope adjacent         # Cautious, but fix nearby issues
 ```
 
-Or compose from scratch:
+Compose from scratch (defaults to collaborative/pragmatic/adjacent for unspecified axes):
 
 ```bash
 claude-mode --agency autonomous --quality architect --scope narrow
 ```
 
-Defaults when no preset and incomplete axes: `collaborative / pragmatic / adjacent`.
-
-## Modifiers
+Add modifiers:
 
 ```bash
-claude-mode new-project --readonly          # Prevent file modifications
-claude-mode explore --print                 # Print the assembled prompt (debug)
+claude-mode new-project --readonly              # Prevent file modifications
 claude-mode new-project --append-system-prompt "Use Rust, not TypeScript"
 ```
 
-## Passing Flags to Claude
-
-Everything after `--` goes straight to Claude Code:
+Pass flags through to Claude Code:
 
 ```bash
 claude-mode new-project -- --verbose --model sonnet
 ```
 
-## Context Pacing
+Debug the assembled prompt:
 
-All modes include instructions that tell Claude it's okay to pause at a natural boundary rather than rushing to finish as context fills up. This addresses a common failure pattern where Claude cuts corners and leaves broken code when approaching context limits.
+```bash
+claude-mode explore --print
+```
 
-## How It Works
+## The axis model
 
-`claude-mode` is a thin two-layer launcher:
+**Agency** — How much initiative should Claude take?
+- **autonomous** — Makes decisions, creates files, restructures without asking
+- **collaborative** — Explains reasoning, checks in at decision points
+- **surgical** — Executes exactly what was asked, nothing more
 
-1. **Bash script** (`claude-mode`) — pre-screens for `--help`/`--print`, then `exec`s the resulting claude command for clean TTY ownership
-2. **TypeScript binary** (`src/build-prompt.ts`) — parses args, resolves presets + overrides, assembles prompt fragments, detects environment, writes a temp file, outputs the `claude --system-prompt-file` command
+**Quality** — What code standard should it target?
+- **architect** — Proper abstractions, error handling, forward-thinking structure
+- **pragmatic** — Match existing patterns, improve incrementally
+- **minimal** — Smallest correct change, no speculative improvements
 
-The assembled prompt faithfully reproduces Claude Code's non-behavioral system prompt (tool usage, security, environment info, hooks) while replacing behavioral instructions with mode-specific content.
-
-## Requirements
-
-- [Bun](https://bun.sh/) runtime
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and available as `claude`
+**Scope** — How far beyond the request can it go?
+- **unrestricted** — Free to create, reorganize, restructure
+- **adjacent** — Fix related issues in the neighborhood
+- **narrow** — Only what was explicitly asked
 
 ## Development
 
 ```bash
-bun test                                          # 106 tests across 8 files
+bun test                                          # Run all tests
 bun run src/build-prompt.ts new-project --print   # Inspect assembled prompt
 ./claude-mode explore --print | head -20          # Test full e2e pipeline
 ```

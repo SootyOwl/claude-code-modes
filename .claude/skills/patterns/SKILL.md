@@ -9,7 +9,7 @@ allowed-tools: Read, Glob, Grep
 
 # Project Patterns Reference
 
-This skill contains detailed pattern documentation for the claude-mode project.
+This skill contains detailed pattern documentation for the claude-code-modes project.
 See individual pattern files for full details with code examples.
 
 Available patterns:
