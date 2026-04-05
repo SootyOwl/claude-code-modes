@@ -65,7 +65,7 @@ prompts/
   modifiers/    Optional additions (readonly, context pacing)
 ```
 
-The base infrastructure prompts (`prompts/base/`) are pulled directly from Claude Code's source — tool names, security instructions, environment detection, and session guidance all match the real system prompt. Only the behavioral instructions are replaced with the axis fragments.
+The base infrastructure prompts (`prompts/base/`) are pulled directly from Claude Code's source (validated against **v2.1.92**) — tool names, security instructions, environment detection, and session guidance all match the real system prompt. Only the behavioral instructions are replaced with the axis fragments.
 
 The behavioral layer is composed from three independent axes — **agency** (how much initiative), **quality** (what code standard), and **scope** (how far beyond the request). Presets are just named combinations of these three values.
 

@@ -29,7 +29,30 @@ prompts/
   base/            # 9 fragments: intro, system, doing-tasks, actions-*, tools, tone, session-guidance, env
   axis/            # 9 fragments: agency/{autonomous,collaborative,surgical}, quality/{architect,pragmatic,minimal}, scope/{unrestricted,adjacent,narrow}
   modifiers/       # context-pacing.md (all modes), readonly.md
+scripts/
+  extract-upstream-prompt.ts  # downloads CC npm package, extracts system prompt functions
+upstream-prompts/             # (gitignored) extracted upstream prompts for diffing
 ```
+
+## Upstream Tracking
+
+**Validated against:** Claude Code v2.1.92
+
+Run `bun run scripts/extract-upstream-prompt.ts [version]` to download and extract
+the system prompt from a new Claude Code release. Output goes to `upstream-prompts/`
+(gitignored). Compare against `prompts/base/` to find drift.
+
+### Intentional Omissions from upstream `doing-tasks`
+
+These upstream instructions are deliberately **not** included in `prompts/base/doing-tasks.md`
+because they conflict with the axis system's quality/scope tuning:
+
+- "Do not create files unless they're absolutely necessary for achieving your goal..."
+- "Don't add features, refactor code, or make 'improvements' beyond what was asked..."
+- "Don't add error handling, fallbacks, or validation for scenarios that can't happen..."
+- "Don't create helpers, utilities, or abstractions for one-time operations..."
+
+These are instead handled by the quality axis fragments (architect vs pragmatic vs minimal).
 
 ## Key Decisions
 
