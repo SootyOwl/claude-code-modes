@@ -43,6 +43,7 @@ import { homedir } from "node:os";
 
 /** Schema for .claude-mode.json */
 export interface UserConfig {
+  defaultModifiers?: string[];  // always-on modifiers (built-in or custom names)
   modifiers?: Record<string, string>;
   axes?: {
     agency?: Record<string, string>;
@@ -93,7 +94,7 @@ export function resolveConfigPath(configDir: string, relativePath: string): stri
 - Config search order: `join(process.cwd(), ".claude-mode.json")` → `join(homedir(), ".config", "claude-mode", "config.json")`
 - First found wins — no merging
 - `readFileSync` + `JSON.parse` with try/catch — invalid JSON gets: `Invalid config file ${path}: ${parseError.message}`
-- Validation checks: top-level is object, `modifiers` values are strings, `axes` sub-objects have string values, `presets` entries have correct shape
+- Validation checks: top-level is object, `defaultModifiers` is array of strings, `modifiers` values are strings, `axes` sub-objects have string values, `presets` entries have correct shape
 - Collision check: config preset names against `PRESET_NAMES`, modifier names against `BUILTIN_MODIFIER_NAMES`
 
 **Acceptance Criteria**:
@@ -358,18 +359,34 @@ export function resolveConfig(
 ): ModeConfig {
   const config = loadedConfig?.config ?? null;
 
-  // Resolve custom modifiers from --modifier flags
+  // Resolve modifiers: defaultModifiers (config) → --modifier flags (CLI)
   let readonlyFlag = parsed.modifiers.readonly;
   let contextPacingFlag = parsed.modifiers.contextPacing;
   const customModifierPaths: string[] = [];
 
+  // 1. Config defaultModifiers — always applied first
+  if (config?.defaultModifiers) {
+    for (const raw of config.defaultModifiers) {
+      const resolved = resolveModifier(raw, loadedConfig);
+      if (resolved.kind === "builtin") {
+        if (resolved.name === "readonly") readonlyFlag = true;
+        if (resolved.name === "context-pacing") contextPacingFlag = true;
+      } else {
+        customModifierPaths.push(resolved.path);
+      }
+    }
+  }
+
+  // 2. CLI --modifier flags — appended after defaults
   for (const raw of parsed.customModifiers) {
     const resolved = resolveModifier(raw, loadedConfig);
     if (resolved.kind === "builtin") {
       if (resolved.name === "readonly") readonlyFlag = true;
       if (resolved.name === "context-pacing") contextPacingFlag = true;
     } else {
-      customModifierPaths.push(resolved.path);
+      if (!customModifierPaths.includes(resolved.path)) {
+        customModifierPaths.push(resolved.path);
+      }
     }
   }
 
@@ -492,6 +509,10 @@ export function resolveConfig(
 - [ ] CLI overrides apply on top of config presets
 - [ ] Unknown preset names throw listing both built-in and config presets
 - [ ] Preset modifiers come before CLI modifiers in the custom list
+- [ ] `defaultModifiers` from config are always applied (before preset and CLI modifiers)
+- [ ] `defaultModifiers` can set built-in flags (readonly, context-pacing)
+- [ ] `defaultModifiers` can reference custom modifier names from config
+- [ ] Duplicate custom modifier paths are deduplicated
 
 ---
 
@@ -729,6 +750,145 @@ Examples:
 
 ---
 
+### Unit 7: Config Management CLI
+
+**File**: `src/config-cli.ts` (new)
+
+The `claude-mode config` subcommand manages `.claude-mode.json` without manual editing.
+
+```typescript
+/**
+ * Handles `claude-mode config <subcommand> [args] [--global]`.
+ * Defaults to project-local (.claude-mode.json in CWD).
+ * --global targets ~/.config/claude-mode/config.json.
+ */
+export function runConfigCommand(argv: string[]): void;
+```
+
+**Command surface**:
+
+```
+claude-mode config show                              # Show current config (merged view)
+claude-mode config init                              # Create .claude-mode.json with empty scaffold
+
+claude-mode config add-default <name-or-path>        # Add to defaultModifiers
+claude-mode config remove-default <name>             # Remove from defaultModifiers
+
+claude-mode config add-modifier <name> <path>        # Register a named modifier
+claude-mode config remove-modifier <name>            # Unregister a named modifier
+
+claude-mode config add-axis <axis> <name> <path>     # Register custom axis value
+claude-mode config remove-axis <axis> <name>         # Unregister custom axis value
+
+claude-mode config add-preset <name> [flags]         # Create a custom preset
+claude-mode config remove-preset <name>              # Remove a custom preset
+
+All commands accept --global to target ~/.config/claude-mode/config.json
+```
+
+**Subcommand details**:
+
+```typescript
+// show: read and pretty-print current config
+// Prints JSON with 2-space indent, or "No config file found." if absent
+function configShow(configPath: string): void;
+
+// init: create empty config scaffold
+// Writes { "defaultModifiers": [], "modifiers": {}, "axes": {}, "presets": {} }
+// Fails if file already exists
+function configInit(configPath: string): void;
+
+// add-default: add a modifier name/path to defaultModifiers array
+// Deduplicates — no-op if already present
+function configAddDefault(configPath: string, value: string): void;
+
+// remove-default: remove from defaultModifiers
+// Throws if not found
+function configRemoveDefault(configPath: string, value: string): void;
+
+// add-modifier: register a named modifier
+// Validates name doesn't collide with built-in modifier names
+function configAddModifier(configPath: string, name: string, path: string): void;
+
+// remove-modifier: unregister a named modifier
+function configRemoveModifier(configPath: string, name: string): void;
+
+// add-axis: register custom axis value
+// axis must be "agency", "quality", or "scope"
+// Validates name doesn't collide with built-in axis values
+function configAddAxis(configPath: string, axis: string, name: string, path: string): void;
+
+// remove-axis: unregister custom axis value
+function configRemoveAxis(configPath: string, axis: string, name: string): void;
+
+// add-preset: create a custom preset
+// Parses flags: --agency, --quality, --scope, --modifier (repeatable), --readonly
+// Validates name doesn't collide with built-in preset names
+function configAddPreset(configPath: string, name: string, flags: string[]): void;
+
+// remove-preset: remove a custom preset
+function configRemovePreset(configPath: string, name: string): void;
+```
+
+**Config file resolution for writes**:
+
+```typescript
+function getConfigPath(isGlobal: boolean): string {
+  if (isGlobal) {
+    return join(homedir(), ".config", "claude-mode", "config.json");
+  }
+  return join(process.cwd(), ".claude-mode.json");
+}
+```
+
+**Read-modify-write pattern**: Each mutation command reads the existing config (or starts from `{}`), modifies the relevant field, and writes back with `JSON.stringify(config, null, 2)`. File is created if it doesn't exist (except `init` which errors on existing files).
+
+**Integration with build-prompt.ts**:
+
+```typescript
+function main(): void {
+  const argv = process.argv.slice(2);
+
+  // Config management subcommand — intercept before normal parsing
+  if (argv[0] === "config") {
+    try {
+      runConfigCommand(argv.slice(1));
+    } catch (err) {
+      process.stderr.write(`Error: ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+
+  // ... normal parse → resolve → assemble flow ...
+}
+```
+
+**Implementation Notes**:
+- Each subcommand is a private helper function with the read-modify-write pattern.
+- The `--global` flag is extracted before dispatching to the subcommand handler.
+- `add-preset` parses its own mini set of flags (`--agency`, `--quality`, `--scope`, `--modifier`, `--readonly`) using `parseArgs` in strict mode.
+- Global config directory (`~/.config/claude-mode/`) is created with `mkdirSync({ recursive: true })` if needed.
+- All mutations print a confirmation message: `Added modifier "rust-style" to .claude-mode.json`
+
+**Acceptance Criteria**:
+- [ ] `claude-mode config show` prints current config or "No config file found."
+- [ ] `claude-mode config init` creates empty scaffold, errors if file exists
+- [ ] `claude-mode config add-default context-pacing` adds to defaultModifiers
+- [ ] `claude-mode config remove-default context-pacing` removes from defaultModifiers
+- [ ] `claude-mode config add-modifier rust-style ./prompts/rust.md` registers modifier
+- [ ] `claude-mode config remove-modifier rust-style` unregisters modifier
+- [ ] `claude-mode config add-axis quality team-standard ./prompts/team-quality.md` registers axis
+- [ ] `claude-mode config remove-axis quality team-standard` unregisters axis
+- [ ] `claude-mode config add-preset team --agency collaborative --quality team-standard --modifier rust-style` creates preset
+- [ ] `claude-mode config remove-preset team` removes preset
+- [ ] All commands default to project-local config
+- [ ] All commands support `--global` flag for global config
+- [ ] Collision with built-in names is rejected with descriptive error
+- [ ] Confirmation messages printed to stdout after mutations
+
+---
+
 ## Implementation Order
 
 1. **Unit 2: Type Changes** — Foundation. All other units depend on the new type shapes. Update `types.ts` and fix all compilation errors in existing code (test fixtures need `custom: []` in modifiers).
@@ -737,6 +897,7 @@ Examples:
 4. **Unit 4: Resolve Changes** — The core logic. Depends on config types, new ParsedArgs shape. Most complex unit.
 5. **Unit 5: Assembly Changes** — Handle absolute paths in fragment list. Depends on new ModeConfig shape.
 6. **Unit 6: Orchestrator Changes** — Wire everything together. Depends on all previous units.
+7. **Unit 7: Config Management CLI** — Depends on config types from Unit 1. Can be built after Unit 2 and Unit 1, in parallel with Units 3-6.
 
 ---
 
@@ -794,6 +955,28 @@ New test cases:
 
 Base fixture update: add `custom: []` to modifiers.
 
+### Unit Tests: `src/config-cli.test.ts` (new)
+
+Key test cases:
+- `config show` prints JSON when config exists
+- `config show` prints "No config file found." when absent
+- `config init` creates scaffold file
+- `config init` errors when file already exists
+- `config add-default` adds entry, deduplicates
+- `config remove-default` removes entry, errors if not found
+- `config add-modifier` registers name → path mapping
+- `config add-modifier` rejects built-in modifier name collision
+- `config remove-modifier` removes mapping
+- `config add-axis` registers axis value name → path
+- `config add-axis` rejects invalid axis name (not agency/quality/scope)
+- `config add-axis` rejects built-in axis value collision
+- `config add-preset` creates preset with axis values and modifiers
+- `config add-preset` rejects built-in preset name collision
+- `config remove-preset` removes preset
+- `--global` flag targets global config path
+
+Test approach: use temp directories for both project-local and global config. Set CWD or pass config path directly.
+
 ### E2E Tests: `src/e2e.test.ts` (updated)
 
 New test cases:
@@ -836,6 +1019,14 @@ cat > /tmp/test-config/.claude-mode.json << 'EOF'
 }
 EOF
 cd /tmp/test-config && bun run /path/to/build-prompt.ts team --print | grep "Collaborative"
+
+# Config management CLI
+bun run src/build-prompt.ts config init
+bun run src/build-prompt.ts config add-modifier rust-style ./prompts/rust.md
+bun run src/build-prompt.ts config add-default rust-style
+bun run src/build-prompt.ts config show
+bun run src/build-prompt.ts config add-preset team --agency collaborative --quality architect
+bun run src/build-prompt.ts config show
 
 # Error cases
 bun run src/build-prompt.ts --quality unknown-value 2>&1 | grep "Unknown"

@@ -33,6 +33,7 @@ Users can bring their own prompt fragments — custom modifiers, custom axis val
 
 ```json
 {
+  "defaultModifiers": ["<built-in-or-custom-name>"],
   "modifiers": {
     "<name>": "<relative-or-absolute-path-to-md>"
   },
@@ -54,6 +55,7 @@ Users can bring their own prompt fragments — custom modifiers, custom axis val
 ```
 
 - All fields are optional (empty config is valid)
+- `defaultModifiers` are always applied — they resolve the same way as preset modifiers (built-in names set flags, custom names resolve to file paths)
 - Paths are relative to the config file's directory
 - Acceptance: a `.claude-mode.json` with a custom preset is usable via `claude-mode <custom-preset-name>`
 
@@ -84,14 +86,17 @@ Users can bring their own prompt fragments — custom modifiers, custom axis val
 - `--modifier` CLI flag (repeatable, accepts paths or config names)
 - File path support for `--agency`, `--quality`, `--scope` flags
 - Config file loading from project-local and global locations
-- Config schema: custom modifiers, custom axis values, custom presets
+- Config schema: custom modifiers, custom axis values, custom presets, defaultModifiers
+- `defaultModifiers` in config — always-on modifiers applied to every invocation
 - Config validation with descriptive error messages
 - Custom presets composing built-in and custom values
 - Resolution order: built-in values first, then config values, then file paths
+- `claude-mode config` subcommand for managing config without manual JSON editing
+- Config management: init, show, add/remove modifiers, defaults, axes, presets
+- `--global` flag on config commands to target global config
 
 **Out of scope:**
 - Merging project-local and global configs (project-local wins entirely if present)
-- Config file creation wizard or scaffolding command
 - Template variable support in custom fragments (custom files are included as-is, no `{{VAR}}` substitution)
 - Config file format other than JSON (no YAML, TOML)
 - Custom base fragment replacement (intro, system, tools, etc.)
