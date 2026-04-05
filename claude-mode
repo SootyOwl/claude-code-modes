@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve the directory this script lives in (follows symlinks)
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+
+# Handle no-args case — pass through to TypeScript directly
+if [ $# -eq 0 ]; then
+  bun run "$SCRIPT_DIR/src/build-prompt.ts"
+  exit $?
+fi
+
+# Check if --help, -h, or --print is in the args.
+# If so, pass through directly to TypeScript and exit — no exec needed.
+for arg in "$@"; do
+  case "$arg" in
+    --help|-h|--print)
+      bun run "$SCRIPT_DIR/src/build-prompt.ts" "$@"
+      exit $?
+      ;;
+    --)
+      break  # Stop scanning — everything after -- is passthrough
+      ;;
+  esac
+done
+
+# Normal mode: capture the claude command and exec it
+CMD=$(bun run "$SCRIPT_DIR/src/build-prompt.ts" "$@")
+
+if [ -z "$CMD" ]; then
+  echo "Error: build-prompt produced no output" >&2
+  exit 1
+fi
+
+# If stdout is a TTY, exec replaces this process so claude gets clean TTY ownership.
+# If stdout is not a TTY (e.g., captured in a subshell / test), just print the command.
+if [ -t 1 ]; then
+  exec $CMD
+else
+  echo "$CMD"
+fi
