@@ -99,6 +99,28 @@ function resolveModifier(
   );
 }
 
+/** Resolves a list of modifier references, updating flags and custom paths in place. */
+function applyModifiers(
+  modifiers: string[],
+  loadedConfig: LoadedConfig | null,
+  flags: { readonly: boolean; contextPacing: boolean },
+  customPaths: string[],
+  position: "append" | "prepend",
+): void {
+  for (const raw of modifiers) {
+    const resolved = resolveModifier(raw, loadedConfig);
+    if (resolved.kind === "builtin") {
+      if (resolved.name === "readonly") flags.readonly = true;
+      if (resolved.name === "context-pacing") flags.contextPacing = true;
+    } else {
+      if (!customPaths.includes(resolved.path)) {
+        if (position === "prepend") customPaths.unshift(resolved.path);
+        else customPaths.push(resolved.path);
+      }
+    }
+  }
+}
+
 export function resolveConfig(
   parsed: ParsedArgs,
   loadedConfig: LoadedConfig | null,
@@ -106,43 +128,24 @@ export function resolveConfig(
   const config = loadedConfig?.config ?? null;
 
   // Resolve modifiers: defaultModifiers (config) → --modifier flags (CLI)
-  let readonlyFlag = parsed.modifiers.readonly;
-  let contextPacingFlag = parsed.modifiers.contextPacing;
+  const flags = { readonly: parsed.modifiers.readonly, contextPacing: parsed.modifiers.contextPacing };
   const customModifierPaths: string[] = [];
 
   // 1. Config defaultModifiers — always applied first
   if (config?.defaultModifiers) {
-    for (const raw of config.defaultModifiers) {
-      const resolved = resolveModifier(raw, loadedConfig);
-      if (resolved.kind === "builtin") {
-        if (resolved.name === "readonly") readonlyFlag = true;
-        if (resolved.name === "context-pacing") contextPacingFlag = true;
-      } else {
-        customModifierPaths.push(resolved.path);
-      }
-    }
+    applyModifiers(config.defaultModifiers, loadedConfig, flags, customModifierPaths, "append");
   }
 
   // 2. CLI --modifier flags — appended after defaults
-  for (const raw of parsed.customModifiers) {
-    const resolved = resolveModifier(raw, loadedConfig);
-    if (resolved.kind === "builtin") {
-      if (resolved.name === "readonly") readonlyFlag = true;
-      if (resolved.name === "context-pacing") contextPacingFlag = true;
-    } else {
-      if (!customModifierPaths.includes(resolved.path)) {
-        customModifierPaths.push(resolved.path);
-      }
-    }
-  }
+  applyModifiers(parsed.customModifiers, loadedConfig, flags, customModifierPaths, "append");
 
   // Handle "none" preset
   if (parsed.preset === "none") {
     return {
       axes: null,
       modifiers: {
-        readonly: readonlyFlag,
-        contextPacing: contextPacingFlag,
+        readonly: flags.readonly,
+        contextPacing: flags.contextPacing,
         custom: customModifierPaths,
       },
     };
@@ -166,7 +169,7 @@ export function resolveConfig(
       scope = parsed.overrides.scope
         ? resolveAxisValue(parsed.overrides.scope, "scope", SCOPE_VALUES, loadedConfig)
         : preset.axes.scope;
-      readonlyFlag = readonlyFlag || preset.readonly;
+      flags.readonly = flags.readonly || preset.readonly;
     } else if (config?.presets && parsed.preset in config.presets) {
       // Config-defined preset
       const customPreset = config.presets[parsed.preset];
@@ -185,23 +188,12 @@ export function resolveConfig(
         : customPreset.scope
           ? resolveAxisValue(customPreset.scope, "scope", SCOPE_VALUES, loadedConfig)
           : DEFAULT_SCOPE;
-      if (customPreset.readonly) readonlyFlag = true;
-      if (customPreset.contextPacing) contextPacingFlag = true;
+      if (customPreset.readonly) flags.readonly = true;
+      if (customPreset.contextPacing) flags.contextPacing = true;
 
       // Resolve preset's modifiers list — inserted before CLI modifiers
       if (customPreset.modifiers) {
-        for (const mod of customPreset.modifiers) {
-          const resolved = resolveModifier(mod, loadedConfig);
-          if (resolved.kind === "builtin") {
-            if (resolved.name === "readonly") readonlyFlag = true;
-            if (resolved.name === "context-pacing") contextPacingFlag = true;
-          } else {
-            // Preset modifiers come before CLI modifiers (unshift)
-            if (!customModifierPaths.includes(resolved.path)) {
-              customModifierPaths.unshift(resolved.path);
-            }
-          }
-        }
+        applyModifiers(customPreset.modifiers, loadedConfig, flags, customModifierPaths, "prepend");
       }
     } else {
       throw new Error(
@@ -228,8 +220,8 @@ export function resolveConfig(
   return {
     axes: { agency, quality, scope },
     modifiers: {
-      readonly: readonlyFlag,
-      contextPacing: contextPacingFlag,
+      readonly: flags.readonly,
+      contextPacing: flags.contextPacing,
       custom: customModifierPaths,
     },
   };
