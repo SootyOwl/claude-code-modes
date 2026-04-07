@@ -152,7 +152,7 @@ describe("inspect — warnings", () => {
     expect(output).toContain("file not found");
   });
 
-  test("warns on suspicious path", () => {
+  test("warns on suspicious path (.ssh)", () => {
     const sshFile = join(tempDir, ".ssh", "config.md");
     mkdirSync(join(tempDir, ".ssh"), { recursive: true });
     writeFileSync(sshFile, "# ssh\n");
@@ -161,6 +161,41 @@ describe("inspect — warnings", () => {
       runInspectCommand(["create", "--modifier", sshFile], PROMPTS_DIR),
     );
     expect(output).toContain("potentially sensitive path");
+  });
+
+  test("warns on .private directory path", () => {
+    const privateDir = join(tempDir, ".private");
+    mkdirSync(privateDir, { recursive: true });
+    const privateFile = join(privateDir, "keys.md");
+    writeFileSync(privateFile, "# private\n");
+
+    const output = captureStdout(() =>
+      runInspectCommand(["create", "--modifier", privateFile], PROMPTS_DIR),
+    );
+    expect(output).toContain("potentially sensitive path");
+  });
+
+  test("warns on private_key in path", () => {
+    const keyFile = join(tempDir, "private_key.md");
+    writeFileSync(keyFile, "# key\n");
+
+    const output = captureStdout(() =>
+      runInspectCommand(["create", "--modifier", keyFile], PROMPTS_DIR),
+    );
+    expect(output).toContain("potentially sensitive path");
+  });
+
+  test("does not false-positive on macOS /private/var paths", () => {
+    // On macOS, resolved temp paths go through /private/var/folders/...
+    // A bare "private" regex match would flag every temp-dir modifier as suspicious.
+    // The pattern must not match /private/var — only .private/ and private_key variants.
+    const safeFile = join(tempDir, "team-rules.md");
+    writeFileSync(safeFile, "# Team rules\n");
+
+    const output = captureStdout(() =>
+      runInspectCommand(["create", "--modifier", safeFile], PROMPTS_DIR),
+    );
+    expect(output).not.toContain("potentially sensitive path");
   });
 
   test("no warnings shows (none) and no banner", () => {

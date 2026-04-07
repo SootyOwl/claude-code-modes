@@ -43,7 +43,13 @@ interface InspectResult {
   verbose: boolean;
 }
 
-const SUSPICIOUS_PATTERN = /\.(ssh|env|gnupg|aws|kube|docker|pgpass)|\.npmrc|\.netrc|id_rsa|id_ed25519|id_ecdsa|credentials|secret|token|password|private/i;
+/**
+ * Matches paths that reference potentially sensitive files (SSH keys, credentials, etc.).
+ * Note: bare "private" was removed — it false-positives on macOS where resolved paths
+ * go through /private/var/folders/... Instead we match ".private/" (hidden directory)
+ * and "private_key"/"private-key" (common key naming patterns).
+ */
+const SUSPICIOUS_PATTERN = /\.(ssh|env|gnupg|aws|kube|docker|pgpass)|\.npmrc|\.netrc|id_rsa|id_ed25519|id_ecdsa|credentials|secret|token|password|\.private[/]|private[_-]?key/i;
 
 /** Builds a Set of all absolute paths that config definitions could resolve to. */
 function collectConfigDefinedPaths(loadedConfig: LoadedConfig | null): Set<string> {
