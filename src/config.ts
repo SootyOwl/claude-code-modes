@@ -3,8 +3,13 @@ import { join, dirname, resolve, isAbsolute } from "node:path";
 import { homedir } from "node:os";
 import { PRESET_NAMES, BUILTIN_MODIFIER_NAMES, AXIS_BUILTINS, BUILTIN_BASE_NAMES, isBuiltinModifier, isPresetName, isBuiltinBase, isBuiltinAxisValue } from "./types.js";
 
-/** Matches paths that reference potentially sensitive files (SSH keys, credentials, etc.) */
-const SUSPICIOUS_PATH_PATTERN = /\.(ssh|env|gnupg|aws|kube|docker|pgpass)|\.npmrc|\.netrc|id_rsa|id_ed25519|id_ecdsa|credentials|secret|token|password|private/i;
+/**
+ * Matches paths that reference potentially sensitive files (SSH keys, credentials, etc.).
+ * Note: bare "private" was removed — it false-positives on macOS where resolved paths
+ * go through /private/var/folders/... Instead we match ".private/" (hidden directory)
+ * and "private_key"/"private-key" (common key naming patterns).
+ */
+const SUSPICIOUS_PATH_PATTERN = /\.(ssh|env|gnupg|aws|kube|docker|pgpass)|\.npmrc|\.netrc|id_rsa|id_ed25519|id_ecdsa|credentials|secret|token|password|\.private[/]|private[_-]?key/i;
 
 /**
  * Validates a file path defined in a config file.
