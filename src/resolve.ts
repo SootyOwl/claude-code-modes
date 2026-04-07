@@ -8,6 +8,7 @@ import {
   QUALITY_VALUES,
   SCOPE_VALUES,
   BUILTIN_MODIFIER_NAMES,
+  BUILTIN_BASE_NAMES,
   PRESET_NAMES,
 } from "./types.js";
 import { resolve as pathResolve, isAbsolute } from "node:path";
@@ -121,6 +122,45 @@ function applyModifiers(
   }
 }
 
+/**
+ * Resolves a base reference to a built-in name or absolute directory path.
+ * Priority: CLI --base > preset base > config defaultBase > "standard"
+ */
+function resolveBase(
+  raw: string | undefined,
+  loadedConfig: LoadedConfig | null,
+  presetBase: string | undefined,
+): string {
+  const config = loadedConfig?.config ?? null;
+
+  // Priority: CLI --base > preset base > config defaultBase > "standard"
+  const value = raw ?? presetBase ?? config?.defaultBase ?? "standard";
+
+  // 1. Built-in name
+  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(value)) return value;
+
+  // 2. Config-defined name
+  const configBases = config?.bases;
+  if (configBases && value in configBases) {
+    return resolveConfigPath(loadedConfig!.configDir, configBases[value]);
+  }
+
+  // 3. Directory path
+  if (looksLikeFilePath(value)) {
+    return isAbsolute(value) ? value : pathResolve(value);
+  }
+
+  // 4. Unknown
+  const configHint = loadedConfig
+    ? ` Config loaded from: ${loadedConfig.configDir}`
+    : " No config file found.";
+  throw new Error(
+    `Unknown --base value: "${value}". ` +
+    `Must be one of: ${BUILTIN_BASE_NAMES.join(", ")}, ` +
+    `a name defined in your config, or a directory path.${configHint}`
+  );
+}
+
 export function resolveConfig(
   parsed: ParsedArgs,
   loadedConfig: LoadedConfig | null,
@@ -139,9 +179,11 @@ export function resolveConfig(
   // 2. CLI --modifier flags — appended after defaults
   applyModifiers(parsed.customModifiers, loadedConfig, flags, customModifierPaths, "append");
 
-  // Handle "none" preset
+  // Handle "none" preset — resolve base before early return
   if (parsed.preset === "none") {
+    const base = resolveBase(parsed.base, loadedConfig, undefined);
     return {
+      base,
       axes: null,
       modifiers: {
         readonly: flags.readonly,
@@ -154,6 +196,7 @@ export function resolveConfig(
   let agency: string;
   let quality: string;
   let scope: string;
+  let presetBase: string | undefined;
 
   if (parsed.preset) {
     // Check built-in presets first, then config presets
@@ -170,9 +213,11 @@ export function resolveConfig(
         ? resolveAxisValue(parsed.overrides.scope, "scope", SCOPE_VALUES, loadedConfig)
         : preset.axes.scope;
       flags.readonly = flags.readonly || preset.readonly;
+      // Built-in presets don't specify a base — presetBase stays undefined
     } else if (config?.presets && parsed.preset in config.presets) {
       // Config-defined preset
       const customPreset = config.presets[parsed.preset];
+      presetBase = customPreset.base;
       agency = parsed.overrides.agency
         ? resolveAxisValue(parsed.overrides.agency, "agency", AGENCY_VALUES, loadedConfig)
         : customPreset.agency
@@ -217,7 +262,10 @@ export function resolveConfig(
       : DEFAULT_SCOPE;
   }
 
+  const base = resolveBase(parsed.base, loadedConfig, presetBase);
+
   return {
+    base,
     axes: { agency, quality, scope },
     modifiers: {
       readonly: flags.readonly,

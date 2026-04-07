@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Reads all 20 built-in prompt fragments from prompts/ and generates
+ * Reads all built-in prompt fragments from prompts/ and generates
  * src/embedded-prompts.ts — a Record<string, string> keyed by relative path.
  *
  * Run: bun scripts/generate-prompts.ts
@@ -14,15 +14,24 @@ const PROMPTS_DIR = join(PROJECT_ROOT, "prompts");
 const OUTPUT_FILE = join(PROJECT_ROOT, "src", "embedded-prompts.ts");
 
 const FRAGMENT_PATHS = [
+  // Standard base fragments
   "base/intro.md",
   "base/system.md",
   "base/doing-tasks.md",
-  "base/actions-autonomous.md",
-  "base/actions-cautious.md",
+  "base/actions.md",
   "base/tools.md",
   "base/tone.md",
   "base/session-guidance.md",
   "base/env.md",
+  // Standard base manifest
+  "base/base.json",
+  // Chill base manifest and fragments
+  "chill/base.json",
+  "chill/core.md",
+  "chill/actions.md",
+  "chill/tools.md",
+  "chill/env.md",
+  // Axis fragments
   "axis/agency/autonomous.md",
   "axis/agency/collaborative.md",
   "axis/agency/surgical.md",
@@ -32,6 +41,7 @@ const FRAGMENT_PATHS = [
   "axis/scope/unrestricted.md",
   "axis/scope/adjacent.md",
   "axis/scope/narrow.md",
+  // Modifiers
   "modifiers/readonly.md",
   "modifiers/context-pacing.md",
 ] as const;

@@ -8,15 +8,24 @@ import type { ModeConfig } from "./types.js";
 const PROMPTS_DIR = join(import.meta.dir, "..", "prompts");
 
 const EXPECTED_FRAGMENTS = [
+  // Standard base fragments
   "base/intro.md",
   "base/system.md",
   "base/doing-tasks.md",
-  "base/actions-autonomous.md",
-  "base/actions-cautious.md",
+  "base/actions.md",
   "base/tools.md",
   "base/tone.md",
   "base/session-guidance.md",
   "base/env.md",
+  // Standard base manifest
+  "base/base.json",
+  // Chill base
+  "chill/base.json",
+  "chill/core.md",
+  "chill/actions.md",
+  "chill/tools.md",
+  "chill/env.md",
+  // Axis fragments
   "axis/agency/autonomous.md",
   "axis/agency/collaborative.md",
   "axis/agency/surgical.md",
@@ -26,13 +35,14 @@ const EXPECTED_FRAGMENTS = [
   "axis/scope/unrestricted.md",
   "axis/scope/adjacent.md",
   "axis/scope/narrow.md",
+  // Modifiers
   "modifiers/readonly.md",
   "modifiers/context-pacing.md",
 ] as const;
 
 describe("EMBEDDED_PROMPTS", () => {
-  test("contains exactly 20 fragments", () => {
-    expect(Object.keys(EMBEDDED_PROMPTS).length).toBe(20);
+  test("contains exactly 25 fragments", () => {
+    expect(Object.keys(EMBEDDED_PROMPTS).length).toBe(25);
   });
 
   test("all expected fragment keys are present", () => {
@@ -54,29 +64,57 @@ describe("EMBEDDED_PROMPTS", () => {
     }
   });
 
+  test("removed action variants are not in embedded map", () => {
+    expect("base/actions-autonomous.md" in EMBEDDED_PROMPTS).toBe(false);
+    expect("base/actions-cautious.md" in EMBEDDED_PROMPTS).toBe(false);
+  });
+
+  test("manifests are embedded and parseable as JSON", () => {
+    const standardManifest = JSON.parse(EMBEDDED_PROMPTS["base/base.json"]);
+    expect(Array.isArray(standardManifest)).toBe(true);
+    expect(standardManifest).toContain("axes");
+    expect(standardManifest).toContain("modifiers");
+
+    const chillManifest = JSON.parse(EMBEDDED_PROMPTS["chill/base.json"]);
+    expect(Array.isArray(chillManifest)).toBe(true);
+    expect(chillManifest).toContain("axes");
+    expect(chillManifest).toContain("modifiers");
+  });
+
   test("all fragment keys used by getFragmentOrder are in EMBEDDED_PROMPTS", () => {
     // Spec: every built-in relative path from getFragmentOrder must be embeddable
     const modes: ModeConfig[] = [
-      // none mode
-      { axes: null, modifiers: { readonly: true, contextPacing: true, custom: [] } },
-      // create preset
+      // none mode — standard base
+      { base: "standard", axes: null, modifiers: { readonly: true, contextPacing: true, custom: [] } },
+      // create preset — standard base
       {
+        base: "standard",
         axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
         modifiers: { readonly: false, contextPacing: false, custom: [] },
       },
-      // safe preset
+      // safe preset — standard base
       {
+        base: "standard",
         axes: { agency: "collaborative", quality: "minimal", scope: "narrow" },
         modifiers: { readonly: false, contextPacing: false, custom: [] },
       },
-      // surgical agency (tests actions-cautious path)
+      // surgical agency — standard base
       {
+        base: "standard",
         axes: { agency: "surgical", quality: "pragmatic", scope: "adjacent" },
+        modifiers: { readonly: false, contextPacing: false, custom: [] },
+      },
+      // none mode — chill base
+      { base: "chill", axes: null, modifiers: { readonly: false, contextPacing: false, custom: [] } },
+      // create preset — chill base
+      {
+        base: "chill",
+        axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
         modifiers: { readonly: false, contextPacing: false, custom: [] },
       },
     ];
     for (const mode of modes) {
-      const paths = getFragmentOrder(mode);
+      const paths = getFragmentOrder(mode, PROMPTS_DIR);
       for (const p of paths) {
         // Only check relative paths (built-in fragments)
         if (!p.startsWith("/")) {

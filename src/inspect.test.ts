@@ -322,6 +322,43 @@ describe("inspect --print (verbose)", () => {
   });
 });
 
+describe("inspect — base section", () => {
+  let tempDir: string;
+  let originalCwd: string;
+
+  beforeEach(() => {
+    tempDir = makeTempDir("inspect-test-");
+    originalCwd = process.cwd();
+    process.chdir(tempDir);
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  test("shows Base section with standard base by default", () => {
+    const output = captureStdout(() => runInspectCommand(["create"], PROMPTS_DIR));
+    expect(output).toContain("=== Base ===");
+    expect(output).toContain("Active: standard");
+  });
+
+  test("shows Base section with chill base when specified", () => {
+    const output = captureStdout(() => runInspectCommand(["create", "--base", "chill"], PROMPTS_DIR));
+    expect(output).toContain("=== Base ===");
+    expect(output).toContain("Active: chill");
+  });
+
+  test("Base section appears after Config section", () => {
+    const output = captureStdout(() => runInspectCommand(["create"], PROMPTS_DIR));
+    const configIdx = output.indexOf("=== Config ===");
+    const baseIdx = output.indexOf("=== Base ===");
+    expect(configIdx).toBeGreaterThan(-1);
+    expect(baseIdx).toBeGreaterThan(-1);
+    expect(baseIdx).toBeGreaterThan(configIdx);
+  });
+});
+
 describe("inspect — template variables", () => {
   let tempDir: string;
   let originalCwd: string;

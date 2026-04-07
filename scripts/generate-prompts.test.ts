@@ -5,7 +5,7 @@ import { execSync } from "node:child_process";
 import { PROJECT_ROOT, makeTempDir } from "../src/test-helpers.js";
 
 describe("generate-prompts.ts", () => {
-  test("produces src/embedded-prompts.ts with 20 fragments", () => {
+  test("produces src/embedded-prompts.ts with 25 fragments", () => {
     execSync("bun scripts/generate-prompts.ts", {
       cwd: PROJECT_ROOT,
       encoding: "utf8",
@@ -16,9 +16,9 @@ describe("generate-prompts.ts", () => {
       "utf8",
     );
     expect(content).toContain("EMBEDDED_PROMPTS");
-    // Count fragment entries (lines with "path": ` pattern)
-    const entries = content.match(/^\s+"(?:base|axis|modifiers)\/[a-z/\-]+\.md": `/gm);
-    expect(entries).toHaveLength(20);
+    // Count fragment entries (lines with "path": ` pattern) — includes .md and .json files
+    const entries = content.match(/^\s+"(?:base|chill|axis|modifiers)\/[a-z/\-.]+": `/gm);
+    expect(entries).toHaveLength(25);
   });
 
   test("generated file has auto-generated header comment", () => {

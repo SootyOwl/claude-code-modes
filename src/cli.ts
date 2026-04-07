@@ -24,6 +24,10 @@ Presets:
   explore         collaborative / architect / narrow (readonly)
   none            no behavioral instructions
 
+Base:
+  --base <name|path>      Built-in: standard, chill
+  Base can also be a config-defined name or a directory path.
+
 Axis overrides:
   --agency <value>        Built-in: autonomous, collaborative, surgical
   --quality <value>       Built-in: architect, pragmatic, minimal

@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { join, resolve, isAbsolute } from "node:path";
 import { tmpdir } from "node:os";
-import type { AssembleOptions, TemplateVars, ModeConfig } from "./types.js";
-import { AGENCY_VALUES } from "./types.js";
+import type { AssembleOptions, TemplateVars, ModeConfig, BaseManifest } from "./types.js";
+import { BUILTIN_BASE_NAMES } from "./types.js";
 import { EMBEDDED_PROMPTS } from "./embedded-prompts.js";
 
 /**
@@ -43,64 +43,95 @@ export function substituteTemplateVars(content: string, vars: TemplateVars): str
   return result;
 }
 
+/** Loads a base manifest. Built-in bases use embedded data; custom bases read from disk. */
+function loadBaseManifest(base: string, promptsDir: string): { manifest: BaseManifest; baseDir: string } {
+  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(base)) {
+    // Built-in: manifest is embedded
+    const manifestKey = base === "standard" ? "base/base.json" : `${base}/base.json`;
+    const raw = EMBEDDED_PROMPTS[manifestKey];
+    if (!raw) throw new Error(`Missing embedded manifest for built-in base "${base}"`);
+    const manifest = JSON.parse(raw) as BaseManifest;
+    const baseDir = base === "standard"
+      ? join(promptsDir, "base")
+      : join(promptsDir, base);
+    return { manifest, baseDir };
+  }
+
+  // Custom base: read from directory
+  const manifestPath = join(base, "base.json");
+  let raw: string;
+  try {
+    raw = readFileSync(manifestPath, "utf8");
+  } catch {
+    throw new Error(
+      `Base directory "${base}" does not contain a base.json manifest`
+    );
+  }
+  const manifest = JSON.parse(raw) as BaseManifest;
+  return { manifest, baseDir: base };
+}
+
+/** Validates a manifest has both required reserved words. */
+function validateManifest(manifest: BaseManifest, baseName: string): void {
+  if (!manifest.includes("axes")) {
+    throw new Error(`Base "${baseName}" manifest is missing an "axes" entry`);
+  }
+  if (!manifest.includes("modifiers")) {
+    throw new Error(`Base "${baseName}" manifest is missing a "modifiers" entry`);
+  }
+}
+
+/** Resolves a fragment filename to an embedded key or absolute path. */
+function resolveFragmentPath(filename: string, baseDir: string, baseName: string): string {
+  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(baseName)) {
+    const prefix = baseName === "standard" ? "base" : baseName;
+    return `${prefix}/${filename}`;
+  }
+  return join(baseDir, filename);
+}
+
 /**
- * Returns the ordered list of fragment paths for the given mode config.
+ * Resolves manifest entries into an ordered list of fragment paths.
  * Built-in fragments are relative paths; custom fragments are absolute paths.
  */
-export function getFragmentOrder(mode: ModeConfig): string[] {
-  const fragments: string[] = [
-    "base/intro.md",
-    "base/system.md",
-  ];
+export function getFragmentOrder(mode: ModeConfig, promptsDir: string): string[] {
+  const { manifest, baseDir } = loadBaseManifest(mode.base, promptsDir);
+  validateManifest(manifest, mode.base);
 
-  // Axis fragments — skipped for "none" mode (axes is null)
-  if (mode.axes) {
-    for (const [axis, value] of [
-      ["agency", mode.axes.agency],
-      ["quality", mode.axes.quality],
-      ["scope", mode.axes.scope],
-    ] as const) {
-      if (isAbsolute(value)) {
-        fragments.push(value); // custom absolute path
-      } else {
-        fragments.push(`axis/${axis}/${value}.md`); // built-in relative path
+  const fragments: string[] = [];
+
+  for (const entry of manifest) {
+    if (entry === "axes") {
+      // Insert axis fragments (skipped for none mode)
+      if (mode.axes) {
+        for (const [axis, value] of [
+          ["agency", mode.axes.agency],
+          ["quality", mode.axes.quality],
+          ["scope", mode.axes.scope],
+        ] as const) {
+          if (isAbsolute(value)) {
+            fragments.push(value);
+          } else {
+            fragments.push(`axis/${axis}/${value}.md`);
+          }
+        }
       }
+    } else if (entry === "modifiers") {
+      // Insert modifier fragments
+      if (mode.modifiers.contextPacing) {
+        fragments.push("modifiers/context-pacing.md");
+      }
+      if (mode.modifiers.readonly) {
+        fragments.push("modifiers/readonly.md");
+      }
+      for (const customPath of mode.modifiers.custom) {
+        fragments.push(customPath);
+      }
+    } else {
+      // Plain fragment filename — resolve relative to base directory
+      fragments.push(resolveFragmentPath(entry, baseDir, mode.base));
     }
   }
-
-  // Base behavioral-neutral sections
-  fragments.push("base/doing-tasks.md");
-
-  // Actions variant: autonomous only for built-in "autonomous" agency
-  const isAutonomous =
-    mode.axes !== null &&
-    (AGENCY_VALUES as readonly string[]).includes(mode.axes.agency) &&
-    mode.axes.agency === "autonomous";
-  if (isAutonomous) {
-    fragments.push("base/actions-autonomous.md");
-  } else {
-    fragments.push("base/actions-cautious.md");
-  }
-
-  fragments.push("base/tools.md");
-  fragments.push("base/tone.md");
-  fragments.push("base/session-guidance.md");
-
-  // Built-in modifiers
-  if (mode.modifiers.contextPacing) {
-    fragments.push("modifiers/context-pacing.md");
-  }
-  if (mode.modifiers.readonly) {
-    fragments.push("modifiers/readonly.md");
-  }
-
-  // Custom modifiers — after built-in modifiers, before env
-  for (const customPath of mode.modifiers.custom) {
-    fragments.push(customPath);
-  }
-
-  // Environment info — always last (contains template variables)
-  fragments.push("base/env.md");
 
   return fragments;
 }
@@ -110,7 +141,7 @@ export function getFragmentOrder(mode: ModeConfig): string[] {
  */
 export function assemblePrompt(options: AssembleOptions): string {
   const { mode, templateVars, promptsDir } = options;
-  const fragmentPaths = getFragmentOrder(mode);
+  const fragmentPaths = getFragmentOrder(mode, promptsDir);
 
   const sections: string[] = [];
   for (const fragPath of fragmentPaths) {

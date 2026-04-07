@@ -7,7 +7,7 @@ import { createCliRunner, makeTempDir } from "./test-helpers.js";
 import { PRESET_NAMES } from "./types.js";
 
 const { run, runExpectFail } = createCliRunner(
-  join(import.meta.dir, "..", "claude-mode"),
+  `bun run ${join(import.meta.dir, "build-prompt.ts")}`,
 );
 
 describe("claude-mode e2e", () => {
@@ -134,6 +134,26 @@ describe("claude-mode e2e", () => {
       const output = run(`${preset} --print`);
       expect(output).not.toMatch(/\{\{[A-Z_]+\}\}/);
     }
+  });
+
+  // --base flag
+  test("--base chill --print produces valid prompt output", () => {
+    const output = run("create --base chill --print");
+    expect(output).toContain("Claude Code");
+    expect(output).not.toMatch(/\{\{[A-Z_]+\}\}/);
+    expect(output).not.toMatch(/^claude /);
+  });
+
+  test("--base chill with none preset --print has no axis headers", () => {
+    const output = run("none --base chill --print");
+    expect(output).not.toContain("# Agency:");
+    expect(output).not.toContain("# Quality:");
+    expect(output).not.toContain("# Scope:");
+  });
+
+  test("--base invalid-name produces descriptive error", () => {
+    const err = runExpectFail("create --base nonexistent-base");
+    expect(err).toContain("Unknown --base value");
   });
 });
 

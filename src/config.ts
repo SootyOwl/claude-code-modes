@@ -1,10 +1,33 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname, resolve, isAbsolute } from "node:path";
 import { homedir } from "node:os";
-import { PRESET_NAMES, BUILTIN_MODIFIER_NAMES, AXIS_BUILTINS } from "./types.js";
+import { PRESET_NAMES, BUILTIN_MODIFIER_NAMES, AXIS_BUILTINS, BUILTIN_BASE_NAMES } from "./types.js";
+
+/** Matches paths that reference potentially sensitive files (SSH keys, credentials, etc.) */
+const SUSPICIOUS_PATH_PATTERN = /\.(ssh|env|gnupg|aws|kube|docker|pgpass)|\.npmrc|\.netrc|id_rsa|id_ed25519|id_ecdsa|credentials|secret|token|password|private/i;
+
+/**
+ * Validates a file path defined in a config file.
+ * Config-defined paths must end with .md and must not reference sensitive files.
+ * This prevents malicious .claude-mode.json files from exfiltrating secrets.
+ */
+function validateConfigDefinedPath(path: string, context: string, configPath: string): void {
+  if (!path.endsWith(".md")) {
+    throw new Error(
+      `Invalid config file ${configPath}: ${context} must be a .md file, got "${path}"`
+    );
+  }
+  if (SUSPICIOUS_PATH_PATTERN.test(path)) {
+    throw new Error(
+      `Invalid config file ${configPath}: ${context} references a potentially sensitive path "${path}"`
+    );
+  }
+}
 
 /** Schema for .claude-mode.json */
 export interface UserConfig {
+  defaultBase?: string;
+  bases?: Record<string, string>; // name → directory path (relative to config dir)
   defaultModifiers?: string[];
   modifiers?: Record<string, string>;
   axes?: {
@@ -16,6 +39,7 @@ export interface UserConfig {
 }
 
 export interface CustomPresetDef {
+  base?: string; // base name for this preset
   agency?: string;
   quality?: string;
   scope?: string;
@@ -43,6 +67,15 @@ export function checkPresetNameCollision(name: string): void {
   if ((PRESET_NAMES as readonly string[]).includes(name)) {
     throw new Error(
       `"${name}" is a built-in preset name (${PRESET_NAMES.join(", ")}); choose a different name`
+    );
+  }
+}
+
+/** Throws if name collides with a built-in base name. */
+export function checkBaseNameCollision(name: string): void {
+  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(name)) {
+    throw new Error(
+      `"${name}" is a built-in base name (${BUILTIN_BASE_NAMES.join(", ")}); choose a different name`
     );
   }
 }
@@ -117,6 +150,30 @@ function validateConfig(raw: unknown, configPath: string): UserConfig {
 
   const obj = raw as Record<string, unknown>;
 
+  // Validate defaultBase
+  if (obj.defaultBase !== undefined && typeof obj.defaultBase !== "string") {
+    throw new Error(
+      `Invalid config file ${configPath}: "defaultBase" must be a string`
+    );
+  }
+
+  // Validate bases map
+  if (obj.bases !== undefined) {
+    if (typeof obj.bases !== "object" || obj.bases === null || Array.isArray(obj.bases)) {
+      throw new Error(
+        `Invalid config file ${configPath}: "bases" must be an object (Record<string, string>)`
+      );
+    }
+    for (const [key, val] of Object.entries(obj.bases as Record<string, unknown>)) {
+      if (typeof val !== "string") {
+        throw new Error(
+          `Invalid config file ${configPath}: "bases.${key}" must be a string`
+        );
+      }
+      checkBaseNameCollision(key);
+    }
+  }
+
   // Validate defaultModifiers
   if (obj.defaultModifiers !== undefined) {
     if (
@@ -126,6 +183,12 @@ function validateConfig(raw: unknown, configPath: string): UserConfig {
       throw new Error(
         `Invalid config file ${configPath}: "defaultModifiers" must be an array of strings`
       );
+    }
+    // Validate file path entries in defaultModifiers
+    for (const entry of obj.defaultModifiers as string[]) {
+      if (entry.includes("/") || entry.includes("\\") || entry.endsWith(".md")) {
+        validateConfigDefinedPath(entry, `"defaultModifiers" entry "${entry}"`, configPath);
+      }
     }
   }
 
@@ -143,6 +206,7 @@ function validateConfig(raw: unknown, configPath: string): UserConfig {
         );
       }
       checkModifierNameCollision(key);
+      validateConfigDefinedPath(val, `"modifiers.${key}"`, configPath);
     }
   }
 
@@ -171,6 +235,7 @@ function validateConfig(raw: unknown, configPath: string): UserConfig {
               `Invalid config file ${configPath}: "axes.${axisName}.${key}" must be a string`
             );
           }
+          validateConfigDefinedPath(val, `"axes.${axisName}.${key}"`, configPath);
         }
       }
     }
@@ -191,6 +256,11 @@ function validateConfig(raw: unknown, configPath: string): UserConfig {
         );
       }
       const def = presetDef as Record<string, unknown>;
+      if (def.base !== undefined && typeof def.base !== "string") {
+        throw new Error(
+          `Invalid config file ${configPath}: preset "${presetName}.base" must be a string`
+        );
+      }
       for (const field of ["agency", "quality", "scope"] as const) {
         if (def[field] !== undefined && typeof def[field] !== "string") {
           throw new Error(

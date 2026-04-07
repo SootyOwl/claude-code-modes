@@ -503,6 +503,39 @@ describe("cli.ts config-driven workflows", () => {
   });
 });
 
+// ─── Base Flag ───────────────────────────────────────────────────────────────
+
+describe("cli.ts --base flag", () => {
+  test("--help shows --base flag", () => {
+    const output = run("--help");
+    expect(output).toContain("--base");
+    expect(output).toContain("standard, chill");
+  });
+
+  test("--base chill produces valid prompt output", () => {
+    const output = run("create --base chill --print");
+    expect(output).toContain("Claude Code");
+    expect(output).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  test("--base chill with explore preset includes readonly", () => {
+    const output = run("explore --base chill --print");
+    expect(output).toContain("# Read-only mode");
+  });
+
+  test("--base chill with none has no axis headers", () => {
+    const output = run("none --base chill --print");
+    expect(output).not.toContain("# Agency:");
+    expect(output).not.toContain("# Quality:");
+    expect(output).not.toContain("# Scope:");
+  });
+
+  test("--base invalid produces error", () => {
+    const output = runExpectFail("create --base nonexistent-base --print");
+    expect(output).toContain("Unknown --base value");
+  });
+});
+
 // ─── Config CLI Subcommand ───────────────────────────────────────────────────
 
 describe("cli.ts config subcommand", () => {

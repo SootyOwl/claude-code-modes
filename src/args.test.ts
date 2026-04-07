@@ -109,4 +109,27 @@ describe("parseCliArgs", () => {
     const result = parseCliArgs([]);
     expect(result.preset).toBeNull();
   });
+
+  test("parses --base flag", () => {
+    const result = parseCliArgs(["create", "--base", "chill"]);
+    expect(result.base).toBe("chill");
+    expect(result.preset).toBe("create");
+  });
+
+  test("--base absent returns undefined", () => {
+    const result = parseCliArgs(["create"]);
+    expect(result.base).toBeUndefined();
+  });
+
+  test("--base with directory path is stored as-is", () => {
+    const result = parseCliArgs(["create", "--base", "./my-base"]);
+    expect(result.base).toBe("./my-base");
+  });
+
+  test("--base is not passed through to claude passthrough args", () => {
+    const result = parseCliArgs(["create", "--base", "chill", "--verbose"]);
+    expect(result.passthroughArgs).not.toContain("--base");
+    expect(result.passthroughArgs).not.toContain("chill");
+    expect(result.passthroughArgs).toContain("--verbose");
+  });
 });

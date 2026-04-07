@@ -4,6 +4,7 @@ import type { ParsedArgs } from "./args.js";
 import type { LoadedConfig } from "./config.js";
 
 const baseParsed: ParsedArgs = {
+  base: undefined,
   preset: null,
   overrides: {},
   modifiers: { readonly: false, print: false, contextPacing: false },
@@ -398,5 +399,122 @@ describe("resolveConfig with LoadedConfig", () => {
       overrides: { quality: "pragmatic" },
     }, loadedConfig);
     expect(config.axes?.quality).toBe("pragmatic");
+  });
+});
+
+describe("resolveConfig — base resolution", () => {
+  const configDir = "/tmp/test-config";
+
+  test("no --base, no config defaults to standard", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "create" }, null);
+    expect(config.base).toBe("standard");
+  });
+
+  test("--base chill resolves to chill", () => {
+    const config = resolveConfig({ ...baseParsed, base: "chill", preset: "create" }, null);
+    expect(config.base).toBe("chill");
+  });
+
+  test("--base standard resolves to standard", () => {
+    const config = resolveConfig({ ...baseParsed, base: "standard", preset: "create" }, null);
+    expect(config.base).toBe("standard");
+  });
+
+  test("--base with directory path resolves to absolute path", () => {
+    const config = resolveConfig({ ...baseParsed, base: "./my-base/" }, null);
+    expect(config.base).toMatch(/^\/.*my-base/);
+  });
+
+  test("--base with absolute path resolves as-is", () => {
+    const config = resolveConfig({ ...baseParsed, base: "/absolute/my-base" }, null);
+    expect(config.base).toBe("/absolute/my-base");
+  });
+
+  test("config defaultBase chill used when no CLI --base", () => {
+    const loadedConfig: LoadedConfig = {
+      configDir,
+      config: { defaultBase: "chill" },
+    };
+    const config = resolveConfig({ ...baseParsed, preset: "create" }, loadedConfig);
+    expect(config.base).toBe("chill");
+  });
+
+  test("CLI --base overrides config defaultBase", () => {
+    const loadedConfig: LoadedConfig = {
+      configDir,
+      config: { defaultBase: "chill" },
+    };
+    const config = resolveConfig({ ...baseParsed, base: "standard", preset: "create" }, loadedConfig);
+    expect(config.base).toBe("standard");
+  });
+
+  test("none preset resolves base correctly", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "none" }, null);
+    expect(config.base).toBe("standard");
+  });
+
+  test("none preset with --base chill resolves to chill", () => {
+    const config = resolveConfig({ ...baseParsed, base: "chill", preset: "none" }, null);
+    expect(config.base).toBe("chill");
+  });
+
+  test("config-defined base name resolves to absolute directory path", () => {
+    const loadedConfig: LoadedConfig = {
+      configDir,
+      config: { bases: { "my-base": "./my-base-dir" } },
+    };
+    const config = resolveConfig({ ...baseParsed, base: "my-base" }, loadedConfig);
+    expect(config.base).toBe(`${configDir}/my-base-dir`);
+  });
+
+  test("unknown base name throws descriptive error listing built-in names", () => {
+    expect(() =>
+      resolveConfig({ ...baseParsed, base: "nonexistent-base" }, null)
+    ).toThrow("Unknown --base value");
+  });
+
+  test("unknown base name error mentions built-in names", () => {
+    expect(() =>
+      resolveConfig({ ...baseParsed, base: "nonexistent-base" }, null)
+    ).toThrow("standard, chill");
+  });
+
+  test("config-defined preset base field is used when no CLI --base", () => {
+    const loadedConfig: LoadedConfig = {
+      configDir,
+      config: {
+        presets: {
+          "chill-preset": {
+            base: "chill",
+            agency: "collaborative",
+            quality: "pragmatic",
+            scope: "adjacent",
+          },
+        },
+      },
+    };
+    const config = resolveConfig({ ...baseParsed, preset: "chill-preset" }, loadedConfig);
+    expect(config.base).toBe("chill");
+  });
+
+  test("CLI --base overrides config preset base field", () => {
+    const loadedConfig: LoadedConfig = {
+      configDir,
+      config: {
+        presets: {
+          "chill-preset": {
+            base: "chill",
+            agency: "collaborative",
+          },
+        },
+      },
+    };
+    const config = resolveConfig({ ...baseParsed, base: "standard", preset: "chill-preset" }, loadedConfig);
+    expect(config.base).toBe("standard");
+  });
+
+  test("built-in preset does not affect base (defaults to standard)", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "explore" }, null);
+    expect(config.base).toBe("standard");
   });
 });

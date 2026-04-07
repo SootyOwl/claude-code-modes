@@ -34,6 +34,7 @@ interface ConfigSource {
 }
 
 interface InspectResult {
+  baseName: string;
   configSource: ConfigSource;
   fragments: FragmentEntry[];
   fragmentContents: Map<number, string | null>;
@@ -210,6 +211,11 @@ function formatInspectOutput(result: InspectResult): string {
   }
   lines.push("");
 
+  // Base section
+  lines.push("=== Base ===");
+  lines.push(`Active: ${result.baseName}`);
+  lines.push("");
+
   // Warnings section — before fragments so issues surface early
   lines.push("=== Warnings ===");
   if (result.warnings.length === 0) {
@@ -279,7 +285,7 @@ export function runInspectCommand(argv: string[], promptsDir: string): void {
   const env = detectEnv();
   const templateVars = buildTemplateVars(env);
 
-  const fragmentPaths = getFragmentOrder(config);
+  const fragmentPaths = getFragmentOrder(config, promptsDir);
   const configDefinedPaths = collectConfigDefinedPaths(loadedConfig);
 
   const fragments: FragmentEntry[] = fragmentPaths.map((fragPath, i) => {
@@ -304,6 +310,6 @@ export function runInspectCommand(argv: string[], promptsDir: string): void {
   const warnings = detectWarnings(fragments, promptsDir);
   const configSource = describeConfigSource(loadedConfig);
 
-  const result: InspectResult = { configSource, fragments, fragmentContents, warnings, templateVars, verbose };
+  const result: InspectResult = { baseName: config.base, configSource, fragments, fragmentContents, warnings, templateVars, verbose };
   process.stdout.write(formatInspectOutput(result));
 }

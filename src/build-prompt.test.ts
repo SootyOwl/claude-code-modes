@@ -65,6 +65,30 @@ describe("build-prompt CLI", () => {
       expect(output).toMatch(/^claude --system-prompt-file /);
     }
   });
+
+  test("--help shows --base flag", () => {
+    const output = run("--help");
+    expect(output).toContain("--base");
+    expect(output).toContain("standard, chill");
+  });
+
+  test("--base chill --print produces valid prompt output", () => {
+    const output = run("create --base chill --print");
+    expect(output).toContain("Claude Code");
+    expect(output).not.toMatch(/\{\{[A-Z_]+\}\}/);
+    expect(output).not.toMatch(/^claude /);
+  });
+
+  test("--base standard --print produces same output as no --base", () => {
+    const withBase = run("create --base standard --print");
+    const withoutBase = run("create --print");
+    expect(withBase).toBe(withoutBase);
+  });
+
+  test("--base invalid-name produces descriptive error", () => {
+    const errOutput = runExpectFail("create --base nonexistent-base");
+    expect(errOutput).toContain("Unknown --base value");
+  });
 });
 
 describe("routing isolation: inspect vs normal --print", () => {

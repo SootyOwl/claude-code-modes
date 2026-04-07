@@ -21,6 +21,17 @@ export type PresetName = (typeof PRESET_NAMES)[number];
 export const BUILTIN_MODIFIER_NAMES = ["readonly", "context-pacing"] as const;
 export type BuiltinModifier = (typeof BUILTIN_MODIFIER_NAMES)[number];
 
+// Built-in base names — "standard" is the existing base, "chill" is the new alternative
+export const BUILTIN_BASE_NAMES = ["standard", "chill"] as const;
+export type BuiltinBaseName = (typeof BUILTIN_BASE_NAMES)[number];
+
+// Reserved manifest entries — "axes" and "modifiers" trigger insertion
+export const MANIFEST_RESERVED = ["axes", "modifiers"] as const;
+export type ManifestReserved = (typeof MANIFEST_RESERVED)[number];
+
+// A manifest is a flat array of strings
+export type BaseManifest = string[];
+
 /** Maps each axis to its built-in values — single source of truth for collision checks */
 export const AXIS_BUILTINS: Record<"agency" | "quality" | "scope", readonly string[]> = {
   agency: AGENCY_VALUES,
@@ -36,6 +47,7 @@ export interface AxisConfig {
 }
 
 export interface ModeConfig {
+  base: string; // built-in name ("standard", "chill") or absolute path to base directory
   axes: AxisConfig | null; // null for "none" mode
   modifiers: {
     readonly: boolean;
