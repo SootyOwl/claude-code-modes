@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.3
+
+**Fixes**
+
+- `inspect` subcommand now works in compiled binaries (handles `/$bunfs/` virtual filesystem paths)
+- `suspicious-path` regex no longer false-positives on macOS `/private/var` paths
+
 ## v0.2.2
 
 **Improvements**
