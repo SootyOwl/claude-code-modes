@@ -78,10 +78,45 @@ echo "Downloading ${ARTIFACT}..."
 
 mkdir -p "$INSTALL_DIR"
 
+CHECKSUMS_URL="https://github.com/${REPO}/releases/download/${TAG}/checksums.txt"
+CHECKSUMS_FILE="$(mktemp)"
+trap 'rm -f "$CHECKSUMS_FILE"' EXIT
+
 if command -v curl > /dev/null 2>&1; then
   curl -fsSL "$DOWNLOAD_URL" -o "$INSTALL_PATH"
+  curl -fsSL "$CHECKSUMS_URL" -o "$CHECKSUMS_FILE"
 else
   wget -qO "$INSTALL_PATH" "$DOWNLOAD_URL"
+  wget -qO "$CHECKSUMS_FILE" "$CHECKSUMS_URL"
+fi
+
+# ---------------------------------------------------------------------------
+# Verify checksum
+# ---------------------------------------------------------------------------
+
+EXPECTED_HASH="$(grep "${ARTIFACT}$" "$CHECKSUMS_FILE" | awk '{print $1}')"
+if [ -z "$EXPECTED_HASH" ]; then
+  echo "Warning: could not find checksum for ${ARTIFACT} in checksums.txt" >&2
+  echo "Skipping integrity verification." >&2
+else
+  if command -v sha256sum > /dev/null 2>&1; then
+    ACTUAL_HASH="$(sha256sum "$INSTALL_PATH" | awk '{print $1}')"
+  elif command -v shasum > /dev/null 2>&1; then
+    ACTUAL_HASH="$(shasum -a 256 "$INSTALL_PATH" | awk '{print $1}')"
+  else
+    echo "Warning: neither sha256sum nor shasum found. Skipping integrity verification." >&2
+    ACTUAL_HASH="$EXPECTED_HASH"
+  fi
+
+  if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+    rm -f "$INSTALL_PATH"
+    echo "Checksum verification failed!" >&2
+    echo "  Expected: ${EXPECTED_HASH}" >&2
+    echo "  Actual:   ${ACTUAL_HASH}" >&2
+    echo "The downloaded binary has been removed." >&2
+    exit 1
+  fi
+  echo "Checksum verified."
 fi
 
 # ---------------------------------------------------------------------------

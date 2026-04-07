@@ -11,7 +11,7 @@ bun test                                    # run all tests
 bun run src/build-prompt.ts --help          # test CLI directly
 bun run src/build-prompt.ts create --print  # inspect assembled prompt
 bun run src/build-prompt.ts config show     # view current config
-./claude-mode create                        # full e2e (needs claude installed)
+bun run src/cli.ts create                   # full e2e (needs claude installed)
 ```
 
 ## Project Structure
@@ -86,7 +86,7 @@ Run `bun run scripts/extract-upstream-prompt.ts [version]` to extract upstream p
 - Custom agency file path defaults to cautious actions variant
 - Config: project-local wins entirely if present (no merging with global)
 - Model name/ID hardcoded in `env.ts` — update on Claude Code releases
-- bash `exec $CMD` gives claude direct TTY ownership; TTY check enables both interactive and test use
+- `cli.ts` uses `Bun.spawn` with inherited stdio for direct TTY ownership; `build-prompt.ts` outputs command string for scripting
 
 ## Conventions
 

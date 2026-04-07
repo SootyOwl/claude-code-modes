@@ -6,6 +6,16 @@ Take control of how Claude Code behaves. The default system prompt is a one-size
 
 ## Install
 
+**Binary (no Bun required):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nklisch/claude-code-modes/main/install.sh | sh
+```
+
+Downloads a compiled binary to `~/.local/bin/claude-mode`. Verifies SHA-256 checksum against the release.
+
+**From source:**
+
 ```bash
 git clone https://github.com/nklisch/claude-code-modes.git
 cd claude-code-modes
@@ -15,10 +25,7 @@ bun link        # adds `claude-mode` to your PATH
 
 Requires [Bun](https://bun.sh/) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude` on your PATH).
 
-> **Alternative:** symlink manually if `bun link` doesn't work for your setup:
-> ```bash
-> ln -s "$(pwd)/claude-mode" ~/.local/bin/claude-mode
-> ```
+> **Migrating from an older git clone?** If you previously used `./claude-mode` directly from the repo, that bash wrapper has been removed. Run `bun link` in the repo to put `claude-mode` on your PATH via the package.json bin entry, or switch to the binary install above.
 
 ## Usage
 
@@ -74,9 +81,9 @@ When you run `claude-mode create`, the tool:
 2. Reads the base infrastructure fragments + the matching axis fragments
 3. Detects your environment (git status, platform, shell)
 4. Writes the assembled prompt to a temp file
-5. Execs `claude --system-prompt-file /tmp/claude-mode-xxx.md` with your TTY
+5. Spawns `claude --system-prompt-file /tmp/claude-mode-xxx.md` with inherited stdio
 
-The bash script `exec`s the final command so Claude Code gets direct TTY ownership — no wrapper process sitting in between.
+`Bun.spawn` gives Claude Code direct TTY ownership — no wrapper process sitting in between.
 
 ## Customizing
 
@@ -219,8 +226,8 @@ System prompt instructions create exactly this kind of situational context. When
 
 ```bash
 bun test                                          # Run all tests
-bun run src/build-prompt.ts create --print   # Inspect assembled prompt
-./claude-mode explore --print | head -20          # Test full e2e pipeline
+bun run src/build-prompt.ts create --print        # Inspect assembled prompt
+bun run src/cli.ts explore --print | head -20     # Test full pipeline
 ```
 
 ## License
