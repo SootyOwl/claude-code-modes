@@ -1,3 +1,5 @@
 node_modules/
 upstream-prompts/
 .tmp-extract/
+dist/
+claude-mode-bin

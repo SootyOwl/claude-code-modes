@@ -3,12 +3,17 @@ import { join, resolve, isAbsolute } from "node:path";
 import { tmpdir } from "node:os";
 import type { AssembleOptions, TemplateVars, ModeConfig } from "./types.js";
 import { AGENCY_VALUES } from "./types.js";
+import { EMBEDDED_PROMPTS } from "./embedded-prompts.js";
 
 /**
  * Reads a prompt fragment from the prompts directory.
  * Returns the content or null if the file doesn't exist.
  */
 export function readFragment(promptsDir: string, relativePath: string): string | null {
+  // Check embedded map first for built-in fragments
+  if (!isAbsolute(relativePath) && relativePath in EMBEDDED_PROMPTS) {
+    return EMBEDDED_PROMPTS[relativePath];
+  }
   const fullPath = resolve(promptsDir, relativePath);
   try {
     return readFileSync(fullPath, "utf8");
@@ -109,16 +114,25 @@ export function assemblePrompt(options: AssembleOptions): string {
 
   const sections: string[] = [];
   for (const fragPath of fragmentPaths) {
-    // Absolute paths are custom fragments; relative paths are built-in
-    const fullPath = isAbsolute(fragPath)
-      ? fragPath
-      : resolve(promptsDir, fragPath);
-
     let content: string | null;
-    try {
-      content = readFileSync(fullPath, "utf8");
-    } catch {
-      content = null;
+    if (isAbsolute(fragPath)) {
+      // Custom fragment — always read from disk
+      try {
+        content = readFileSync(fragPath, "utf8");
+      } catch {
+        content = null;
+      }
+    } else {
+      // Built-in fragment — embedded map first, disk fallback
+      content = EMBEDDED_PROMPTS[fragPath] ?? null;
+      if (content === null) {
+        const fullPath = resolve(promptsDir, fragPath);
+        try {
+          content = readFileSync(fullPath, "utf8");
+        } catch {
+          content = null;
+        }
+      }
     }
 
     if (content === null) {

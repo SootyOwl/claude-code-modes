@@ -278,6 +278,18 @@ describe("getFragmentOrder custom prompts", () => {
   });
 });
 
+describe("assemblePrompt embedded prompts", () => {
+  test("assemblePrompt works with non-existent promptsDir (uses embedded)", () => {
+    const result = assemblePrompt({
+      mode: { axes: null, modifiers: { readonly: false, contextPacing: false, custom: [] } },
+      templateVars: TEST_VARS,
+      promptsDir: "/nonexistent/path",
+    });
+    expect(result).toContain("Claude Code");
+    expect(result).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+});
+
 describe("writeTempPrompt", () => {
   test("writes file to temp directory", () => {
     const content = "test prompt content";
