@@ -9,6 +9,12 @@ describe("getPreset", () => {
     expect(p.readonly).toBe(false);
   });
 
+  test("create has no base and empty modifiers", () => {
+    const p = getPreset("create");
+    expect(p.base).toBeUndefined();
+    expect(p.modifiers).toEqual([]);
+  });
+
   test("extend has autonomous/pragmatic/adjacent", () => {
     const p = getPreset("extend");
     expect(p.axes).toEqual({ agency: "autonomous", quality: "pragmatic", scope: "adjacent" });
@@ -39,9 +45,40 @@ describe("getPreset", () => {
     expect(p.readonly).toBe(false);
   });
 
+  test("debug has collaborative/pragmatic/narrow", () => {
+    const p = getPreset("debug");
+    expect(p.axes).toEqual({ agency: "collaborative", quality: "pragmatic", scope: "narrow" });
+    expect(p.readonly).toBe(false);
+  });
+
+  test("debug has base chill and modifiers ['debug']", () => {
+    const p = getPreset("debug");
+    expect(p.base).toBe("chill");
+    expect(p.modifiers).toEqual(["debug"]);
+  });
+
+  test("methodical has surgical/architect/narrow", () => {
+    const p = getPreset("methodical");
+    expect(p.axes).toEqual({ agency: "surgical", quality: "architect", scope: "narrow" });
+    expect(p.readonly).toBe(false);
+  });
+
+  test("methodical has base chill and modifiers ['methodical']", () => {
+    const p = getPreset("methodical");
+    expect(p.base).toBe("chill");
+    expect(p.modifiers).toEqual(["methodical"]);
+  });
+
   test("all PRESET_NAMES have definitions", () => {
     for (const name of PRESET_NAMES) {
       expect(getPreset(name)).toBeDefined();
+    }
+  });
+
+  test("all existing presets have a modifiers array", () => {
+    for (const name of PRESET_NAMES) {
+      const p = getPreset(name);
+      expect(Array.isArray(p.modifiers)).toBe(true);
     }
   });
 });
@@ -54,6 +91,8 @@ describe("isPresetName", () => {
     expect(isPresetName("refactor")).toBe(true);
     expect(isPresetName("explore")).toBe(true);
     expect(isPresetName("none")).toBe(true);
+    expect(isPresetName("debug")).toBe(true);
+    expect(isPresetName("methodical")).toBe(true);
   });
 
   test("returns false for invalid names", () => {

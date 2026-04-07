@@ -67,19 +67,19 @@ describe("getFragmentOrder", () => {
   const noneMode: ModeConfig = {
     base: "standard",
     axes: null,
-    modifiers: { readonly: false, contextPacing: false, custom: [] },
+    modifiers: [],
   };
 
   const autonomousMode: ModeConfig = {
     base: "standard",
     axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-    modifiers: { readonly: false, contextPacing: false, custom: [] },
+    modifiers: [],
   };
 
   const collaborativeMode: ModeConfig = {
     base: "standard",
     axes: { agency: "collaborative", quality: "pragmatic", scope: "adjacent" },
-    modifiers: { readonly: false, contextPacing: false, custom: [] },
+    modifiers: [],
   };
 
   test("none mode has no axis fragments", () => {
@@ -129,13 +129,13 @@ describe("getFragmentOrder", () => {
     expect(getFragmentOrder(autonomousMode, PROMPTS_DIR)).not.toContain("modifiers/context-pacing.md");
   });
 
-  test("includes context-pacing when enabled", () => {
-    const withContextPacing: ModeConfig = { base: "standard", axes: null, modifiers: { readonly: false, contextPacing: true, custom: [] } };
+  test("includes context-pacing when in modifiers list", () => {
+    const withContextPacing: ModeConfig = { base: "standard", axes: null, modifiers: ["modifiers/context-pacing.md"] };
     expect(getFragmentOrder(withContextPacing, PROMPTS_DIR)).toContain("modifiers/context-pacing.md");
   });
 
-  test("includes readonly only when flagged", () => {
-    const readonlyMode: ModeConfig = { base: "standard", axes: null, modifiers: { readonly: true, contextPacing: false, custom: [] } };
+  test("includes readonly only when in modifiers list", () => {
+    const readonlyMode: ModeConfig = { base: "standard", axes: null, modifiers: ["modifiers/readonly.md"] };
     expect(getFragmentOrder(readonlyMode, PROMPTS_DIR)).toContain("modifiers/readonly.md");
     expect(getFragmentOrder(noneMode, PROMPTS_DIR)).not.toContain("modifiers/readonly.md");
   });
@@ -159,13 +159,13 @@ describe("getFragmentOrder — chill base", () => {
   const chillNone: ModeConfig = {
     base: "chill",
     axes: null,
-    modifiers: { readonly: false, contextPacing: false, custom: [] },
+    modifiers: [],
   };
 
   const chillAuto: ModeConfig = {
     base: "chill",
     axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-    modifiers: { readonly: false, contextPacing: false, custom: [] },
+    modifiers: [],
   };
 
   test("chill base produces correct fragment paths", () => {
@@ -197,7 +197,7 @@ describe("getFragmentOrder — chill base", () => {
     const withMods: ModeConfig = {
       base: "chill",
       axes: null,
-      modifiers: { readonly: true, contextPacing: true, custom: [] },
+      modifiers: ["modifiers/context-pacing.md", "modifiers/readonly.md"],
     };
     const order = getFragmentOrder(withMods, PROMPTS_DIR);
     expect(order).toContain("modifiers/context-pacing.md");
@@ -213,7 +213,7 @@ describe("getFragmentOrder — manifest validation", () => {
     const mode: ModeConfig = {
       base: "/nonexistent/base-dir",
       axes: null,
-      modifiers: { readonly: false, contextPacing: false, custom: [] },
+      modifiers: [],
     };
     expect(() => getFragmentOrder(mode, PROMPTS_DIR)).toThrow("does not contain a base.json manifest");
   });
@@ -222,7 +222,7 @@ describe("getFragmentOrder — manifest validation", () => {
 describe("assemblePrompt", () => {
   test("assembles none mode without errors", () => {
     const result = assemblePrompt({
-      mode: { base: "standard", axes: null, modifiers: { readonly: false, contextPacing: false, custom: [] } },
+      mode: { base: "standard", axes: null, modifiers: [] },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
@@ -231,7 +231,7 @@ describe("assemblePrompt", () => {
 
   test("assembled prompt has no unreplaced template variables", () => {
     const result = assemblePrompt({
-      mode: { base: "standard", axes: null, modifiers: { readonly: false, contextPacing: false, custom: [] } },
+      mode: { base: "standard", axes: null, modifiers: [] },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
@@ -240,7 +240,7 @@ describe("assemblePrompt", () => {
 
   test("assembled prompt contains key sections", () => {
     const result = assemblePrompt({
-      mode: { base: "standard", axes: null, modifiers: { readonly: false, contextPacing: false, custom: [] } },
+      mode: { base: "standard", axes: null, modifiers: [] },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
@@ -257,7 +257,7 @@ describe("assemblePrompt", () => {
       mode: {
         base: "standard",
         axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-        modifiers: { readonly: false, contextPacing: false, custom: [] },
+        modifiers: [],
       },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
@@ -274,7 +274,7 @@ describe("assemblePrompt", () => {
       mode: {
         base: "chill",
         axes: { agency: "collaborative", quality: "pragmatic", scope: "adjacent" },
-        modifiers: { readonly: false, contextPacing: false, custom: [] },
+        modifiers: [],
       },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
@@ -288,8 +288,62 @@ describe("assemblePrompt", () => {
       mode: {
         base: "chill",
         axes: null,
-        modifiers: { readonly: false, contextPacing: false, custom: [] },
+        modifiers: [],
       },
+      templateVars: TEST_VARS,
+      promptsDir: PROMPTS_DIR,
+    });
+    expect(result).not.toMatch(/\bIMPORTANT\b/);
+    expect(result).not.toMatch(/\bCRITICAL\b/);
+    expect(result).not.toMatch(/\bMUST\b/);
+    expect(result).not.toMatch(/\bNEVER\b/);
+  });
+
+  test("debug preset assembles without errors and includes investigation content", () => {
+    const result = assemblePrompt({
+      mode: {
+        base: "chill",
+        axes: { agency: "collaborative", quality: "pragmatic", scope: "narrow" },
+        modifiers: ["modifiers/debug.md"],
+      },
+      templateVars: TEST_VARS,
+      promptsDir: PROMPTS_DIR,
+    });
+    expect(result.length).toBeGreaterThan(0);
+    expect(result).not.toMatch(/\{\{[A-Z_]+\}\}/);
+    expect(result).toContain("Investigation mode");
+  });
+
+  test("methodical preset assembles without errors and includes methodical content", () => {
+    const result = assemblePrompt({
+      mode: {
+        base: "chill",
+        axes: { agency: "surgical", quality: "architect", scope: "narrow" },
+        modifiers: ["modifiers/methodical.md"],
+      },
+      templateVars: TEST_VARS,
+      promptsDir: PROMPTS_DIR,
+    });
+    expect(result.length).toBeGreaterThan(0);
+    expect(result).not.toMatch(/\{\{[A-Z_]+\}\}/);
+    expect(result).toContain("Methodical mode");
+  });
+
+  test("debug modifier content has no ALL-CAPS emphasis", () => {
+    const result = assemblePrompt({
+      mode: { base: "chill", axes: null, modifiers: ["modifiers/debug.md"] },
+      templateVars: TEST_VARS,
+      promptsDir: PROMPTS_DIR,
+    });
+    expect(result).not.toMatch(/\bIMPORTANT\b/);
+    expect(result).not.toMatch(/\bCRITICAL\b/);
+    expect(result).not.toMatch(/\bMUST\b/);
+    expect(result).not.toMatch(/\bNEVER\b/);
+  });
+
+  test("methodical modifier content has no ALL-CAPS emphasis", () => {
+    const result = assemblePrompt({
+      mode: { base: "chill", axes: null, modifiers: ["modifiers/methodical.md"] },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
@@ -315,7 +369,7 @@ describe("assemblePrompt custom prompts", () => {
     const mode: ModeConfig = {
       base: "standard",
       axes: null,
-      modifiers: { readonly: false, contextPacing: false, custom: [customPath] },
+      modifiers: [customPath],
     };
     const result = assemblePrompt({ mode, templateVars: TEST_VARS, promptsDir: PROMPTS_DIR });
     expect(result).toContain("# Custom Test Rule");
@@ -330,7 +384,7 @@ describe("assemblePrompt custom prompts", () => {
     const mode: ModeConfig = {
       base: "standard",
       axes: { agency: "collaborative", quality: customPath, scope: "adjacent" },
-      modifiers: { readonly: false, contextPacing: false, custom: [] },
+      modifiers: [],
     };
     const result = assemblePrompt({ mode, templateVars: TEST_VARS, promptsDir: PROMPTS_DIR });
     expect(result).toContain("Team Standard");
@@ -343,7 +397,7 @@ describe("assemblePrompt custom prompts", () => {
     const mode: ModeConfig = {
       base: "standard",
       axes: null,
-      modifiers: { readonly: false, contextPacing: false, custom: ["/nonexistent/path.md"] },
+      modifiers: ["/nonexistent/path.md"],
     };
     expect(() =>
       assemblePrompt({ mode, templateVars: TEST_VARS, promptsDir: PROMPTS_DIR })
@@ -354,7 +408,7 @@ describe("assemblePrompt custom prompts", () => {
     const mode: ModeConfig = {
       base: "standard",
       axes: { agency: "collaborative", quality: "/nonexistent/quality.md", scope: "adjacent" },
-      modifiers: { readonly: false, contextPacing: false, custom: [] },
+      modifiers: [],
     };
     expect(() =>
       assemblePrompt({ mode, templateVars: TEST_VARS, promptsDir: PROMPTS_DIR })
@@ -363,11 +417,11 @@ describe("assemblePrompt custom prompts", () => {
 });
 
 describe("getFragmentOrder custom prompts", () => {
-  test("custom modifier positioned after context-pacing and readonly, before env", () => {
+  test("modifiers appear in list order, before env", () => {
     const mode: ModeConfig = {
       base: "standard",
       axes: null,
-      modifiers: { readonly: true, contextPacing: true, custom: ["/tmp/custom.md"] },
+      modifiers: ["modifiers/context-pacing.md", "modifiers/readonly.md", "/tmp/custom.md"],
     };
     const order = getFragmentOrder(mode, PROMPTS_DIR);
     const contextPacingIdx = order.indexOf("modifiers/context-pacing.md");
@@ -379,7 +433,8 @@ describe("getFragmentOrder custom prompts", () => {
     expect(readonlyIdx).toBeGreaterThan(-1);
     expect(customIdx).toBeGreaterThan(-1);
     expect(envIdx).toBeGreaterThan(-1);
-    expect(customIdx).toBeGreaterThan(readonlyIdx);
+    expect(contextPacingIdx).toBeLessThan(readonlyIdx);
+    expect(readonlyIdx).toBeLessThan(customIdx);
     expect(customIdx).toBeLessThan(envIdx);
   });
 
@@ -387,7 +442,7 @@ describe("getFragmentOrder custom prompts", () => {
     const mode: ModeConfig = {
       base: "standard",
       axes: { agency: "/tmp/custom-agency.md", quality: "pragmatic", scope: "adjacent" },
-      modifiers: { readonly: false, contextPacing: false, custom: [] },
+      modifiers: [],
     };
     const order = getFragmentOrder(mode, PROMPTS_DIR);
     expect(order).toContain("/tmp/custom-agency.md");
@@ -398,7 +453,7 @@ describe("getFragmentOrder custom prompts", () => {
 describe("assemblePrompt embedded prompts", () => {
   test("assemblePrompt works with non-existent promptsDir for none mode", () => {
     const result = assemblePrompt({
-      mode: { base: "standard", axes: null, modifiers: { readonly: false, contextPacing: false, custom: [] } },
+      mode: { base: "standard", axes: null, modifiers: [] },
       templateVars: TEST_VARS,
       promptsDir: "/nonexistent/path",
     });
@@ -412,7 +467,7 @@ describe("assemblePrompt embedded prompts", () => {
       mode: {
         base: "standard",
         axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-        modifiers: { readonly: false, contextPacing: false, custom: [] },
+        modifiers: [],
       },
       templateVars: TEST_VARS,
       promptsDir: "/nonexistent/path",
@@ -429,7 +484,7 @@ describe("assemblePrompt embedded prompts", () => {
       mode: {
         base: "standard",
         axes: null,
-        modifiers: { readonly: true, contextPacing: true, custom: [] },
+        modifiers: ["modifiers/readonly.md", "modifiers/context-pacing.md"],
       },
       templateVars: TEST_VARS,
       promptsDir: "/nonexistent/path",
@@ -438,12 +493,40 @@ describe("assemblePrompt embedded prompts", () => {
     expect(result).toContain("# Context and pacing");
   });
 
+  test("assemblePrompt with debug modifier works from embedded map", () => {
+    const result = assemblePrompt({
+      mode: {
+        base: "chill",
+        axes: null,
+        modifiers: ["modifiers/debug.md"],
+      },
+      templateVars: TEST_VARS,
+      promptsDir: "/nonexistent/path",
+    });
+    expect(result).toContain("Investigation mode");
+    expect(result).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  test("assemblePrompt with methodical modifier works from embedded map", () => {
+    const result = assemblePrompt({
+      mode: {
+        base: "chill",
+        axes: null,
+        modifiers: ["modifiers/methodical.md"],
+      },
+      templateVars: TEST_VARS,
+      promptsDir: "/nonexistent/path",
+    });
+    expect(result).toContain("Methodical mode");
+    expect(result).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
   test("chill base assemblePrompt works with non-existent promptsDir", () => {
     const result = assemblePrompt({
       mode: {
         base: "chill",
         axes: null,
-        modifiers: { readonly: false, contextPacing: false, custom: [] },
+        modifiers: [],
       },
       templateVars: TEST_VARS,
       promptsDir: "/nonexistent/path",

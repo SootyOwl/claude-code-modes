@@ -117,15 +117,9 @@ export function getFragmentOrder(mode: ModeConfig, promptsDir: string): string[]
         }
       }
     } else if (entry === "modifiers") {
-      // Insert modifier fragments
-      if (mode.modifiers.contextPacing) {
-        fragments.push("modifiers/context-pacing.md");
-      }
-      if (mode.modifiers.readonly) {
-        fragments.push("modifiers/readonly.md");
-      }
-      for (const customPath of mode.modifiers.custom) {
-        fragments.push(customPath);
+      // All modifiers are fragment paths — just add them
+      for (const modPath of mode.modifiers) {
+        fragments.push(modPath);
       }
     } else {
       // Plain fragment filename — resolve relative to base directory

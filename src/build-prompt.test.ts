@@ -60,10 +60,40 @@ describe("build-prompt CLI", () => {
   });
 
   test("all presets produce valid commands", () => {
-    for (const preset of ["create", "extend", "safe", "refactor", "explore", "none"]) {
+    for (const preset of ["create", "extend", "safe", "refactor", "explore", "none", "debug", "methodical"]) {
       const output = run(preset);
       expect(output).toMatch(/^claude --system-prompt-file /);
     }
+  });
+
+  test("debug --print contains investigation mode content", () => {
+    const output = run("debug --print");
+    expect(output).toContain("Investigation mode");
+    expect(output).not.toMatch(/^claude /);
+  });
+
+  test("methodical --print contains methodical mode content", () => {
+    const output = run("methodical --print");
+    expect(output).toContain("Methodical mode");
+    expect(output).not.toMatch(/^claude /);
+  });
+
+  test("debug --print has no unreplaced template variables", () => {
+    const output = run("debug --print");
+    expect(output).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  test("debug --base standard --print uses standard base", () => {
+    const withStandard = run("debug --base standard --print");
+    const withChill = run("debug --print");
+    // Standard base has different content than chill base
+    expect(withStandard).not.toBe(withChill);
+  });
+
+  test("--help shows debug and methodical presets", () => {
+    const output = run("--help");
+    expect(output).toContain("debug");
+    expect(output).toContain("methodical");
   });
 
   test("--help shows --base flag", () => {

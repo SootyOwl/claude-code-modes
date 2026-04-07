@@ -12,6 +12,8 @@ Presets:
   refactor        autonomous / pragmatic / unrestricted
   explore         collaborative / architect / narrow (readonly)
   none            no behavioral instructions
+  debug           collaborative / pragmatic / narrow (chill base, investigation mode)
+  methodical      surgical / architect / narrow (chill base, step-by-step)
 
 Base:
   --base <name|path>      Built-in: standard, chill
@@ -45,6 +47,8 @@ Examples:
   claude-mode --agency autonomous --quality ./team-quality.md
   claude-mode team-default                    # custom preset from config
   claude-mode explore --print
+  claude-mode debug                           # investigation-first debugging
+  claude-mode methodical                      # step-by-step precision
   claude-mode create -- --verbose --model sonnet`;
 
   process.stdout.write(usage + "\n");

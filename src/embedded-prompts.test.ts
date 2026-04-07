@@ -38,11 +38,13 @@ const EXPECTED_FRAGMENTS = [
   // Modifiers
   "modifiers/readonly.md",
   "modifiers/context-pacing.md",
+  "modifiers/debug.md",
+  "modifiers/methodical.md",
 ] as const;
 
 describe("EMBEDDED_PROMPTS", () => {
-  test("contains exactly 25 fragments", () => {
-    expect(Object.keys(EMBEDDED_PROMPTS).length).toBe(25);
+  test("contains exactly 27 fragments", () => {
+    expect(Object.keys(EMBEDDED_PROMPTS).length).toBe(27);
   });
 
   test("all expected fragment keys are present", () => {
@@ -84,33 +86,45 @@ describe("EMBEDDED_PROMPTS", () => {
   test("all fragment keys used by getFragmentOrder are in EMBEDDED_PROMPTS", () => {
     // Spec: every built-in relative path from getFragmentOrder must be embeddable
     const modes: ModeConfig[] = [
-      // none mode — standard base
-      { base: "standard", axes: null, modifiers: { readonly: true, contextPacing: true, custom: [] } },
+      // none mode — standard base, with built-in modifiers
+      { base: "standard", axes: null, modifiers: ["modifiers/readonly.md", "modifiers/context-pacing.md"] },
       // create preset — standard base
       {
         base: "standard",
         axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-        modifiers: { readonly: false, contextPacing: false, custom: [] },
+        modifiers: [],
       },
       // safe preset — standard base
       {
         base: "standard",
         axes: { agency: "collaborative", quality: "minimal", scope: "narrow" },
-        modifiers: { readonly: false, contextPacing: false, custom: [] },
+        modifiers: [],
       },
       // surgical agency — standard base
       {
         base: "standard",
         axes: { agency: "surgical", quality: "pragmatic", scope: "adjacent" },
-        modifiers: { readonly: false, contextPacing: false, custom: [] },
+        modifiers: [],
       },
       // none mode — chill base
-      { base: "chill", axes: null, modifiers: { readonly: false, contextPacing: false, custom: [] } },
+      { base: "chill", axes: null, modifiers: [] },
       // create preset — chill base
       {
         base: "chill",
         axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-        modifiers: { readonly: false, contextPacing: false, custom: [] },
+        modifiers: [],
+      },
+      // debug preset — chill base with debug modifier
+      {
+        base: "chill",
+        axes: { agency: "collaborative", quality: "pragmatic", scope: "narrow" },
+        modifiers: ["modifiers/debug.md"],
+      },
+      // methodical preset — chill base with methodical modifier
+      {
+        base: "chill",
+        axes: { agency: "surgical", quality: "architect", scope: "narrow" },
+        modifiers: ["modifiers/methodical.md"],
       },
     ];
     for (const mode of modes) {

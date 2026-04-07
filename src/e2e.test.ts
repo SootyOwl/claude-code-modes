@@ -72,6 +72,29 @@ describe("claude-mode e2e", () => {
     expect(output).not.toContain("# Scope:");
   });
 
+  test("debug --print contains investigation mode content", () => {
+    const output = run("debug --print");
+    expect(output).toContain("Investigation mode");
+    expect(output).toContain("# Agency: Collaborative");
+    expect(output).toContain("# Quality: Pragmatic");
+    expect(output).toContain("# Scope: Narrow");
+  });
+
+  test("methodical --print contains methodical mode content", () => {
+    const output = run("methodical --print");
+    expect(output).toContain("Methodical mode");
+    expect(output).toContain("# Agency: Surgical");
+    expect(output).toContain("# Quality: Architect");
+    expect(output).toContain("# Scope: Narrow");
+  });
+
+  test("debug --base standard --print uses standard base not chill", () => {
+    const debugChill = run("debug --print");
+    const debugStandard = run("debug --base standard --print");
+    expect(debugStandard).not.toBe(debugChill);
+    expect(debugStandard).toContain("Investigation mode");
+  });
+
   // Context pacing is opt-in
   test("context pacing excluded by default, included with flag", () => {
     const without = run("create --print");

@@ -14,6 +14,8 @@ export const PRESET_NAMES = [
   "refactor",
   "explore",
   "none",
+  "debug",
+  "methodical",
 ] as const;
 export type PresetName = (typeof PRESET_NAMES)[number];
 export function isPresetName(value: string): value is PresetName {
@@ -21,7 +23,7 @@ export function isPresetName(value: string): value is PresetName {
 }
 
 // Built-in modifier names — used for collision checking in config validation
-export const BUILTIN_MODIFIER_NAMES = ["readonly", "context-pacing"] as const;
+export const BUILTIN_MODIFIER_NAMES = ["readonly", "context-pacing", "debug", "methodical"] as const;
 export type BuiltinModifier = (typeof BUILTIN_MODIFIER_NAMES)[number];
 export function isBuiltinModifier(value: string): value is BuiltinModifier {
   return (BUILTIN_MODIFIER_NAMES as readonly string[]).includes(value);
@@ -61,11 +63,7 @@ export interface AxisConfig {
 export interface ModeConfig {
   base: string; // built-in name ("standard", "chill") or absolute path to base directory
   axes: AxisConfig | null; // null for "none" mode
-  modifiers: {
-    readonly: boolean;
-    contextPacing: boolean;
-    custom: string[]; // ordered list of absolute paths to custom modifier files
-  };
+  modifiers: string[]; // ordered list of modifier fragment paths (embedded keys or absolute paths)
 }
 
 export interface EnvInfo {

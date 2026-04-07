@@ -64,7 +64,7 @@ function resolveAxisValue(
 }
 
 /**
- * Resolves a modifier reference to either a built-in flag name or an absolute path.
+ * Resolves a modifier reference to either a built-in fragment path or an absolute path.
  * Resolution order: built-in modifier name → config-defined name → file path.
  */
 function resolveModifier(
@@ -102,31 +102,35 @@ function resolveModifier(
   );
 }
 
-/** Resolves a list of modifier references, updating flags and custom paths in place. */
+/**
+ * Resolves a list of modifier references and appends/prepends their paths to resolvedPaths.
+ * Built-in modifiers resolve to "modifiers/{name}.md"; custom modifiers resolve to absolute paths.
+ * Deduplicates by path.
+ */
 function applyModifiers(
   modifiers: string[],
   loadedConfig: LoadedConfig | null,
-  flags: { readonly: boolean; contextPacing: boolean },
-  customPaths: string[],
+  resolvedPaths: string[],
   position: "append" | "prepend",
 ): void {
   for (const raw of modifiers) {
     const resolved = resolveModifier(raw, loadedConfig);
+    let path: string;
     if (resolved.kind === "builtin") {
-      if (resolved.name === "readonly") flags.readonly = true;
-      if (resolved.name === "context-pacing") flags.contextPacing = true;
+      path = `modifiers/${resolved.name}.md`;
     } else {
-      if (!customPaths.includes(resolved.path)) {
-        if (position === "prepend") customPaths.unshift(resolved.path);
-        else customPaths.push(resolved.path);
-      }
+      path = resolved.path;
+    }
+    if (!resolvedPaths.includes(path)) {
+      if (position === "prepend") resolvedPaths.unshift(path);
+      else resolvedPaths.push(path);
     }
   }
 }
 
 /**
  * Resolves a base reference to a built-in name or absolute directory path.
- * Priority: CLI --base > preset base > config defaultBase > "standard"
+ * Priority: CLI --base > config defaultBase > preset base > "standard"
  */
 function resolveBase(
   raw: string | undefined,
@@ -135,8 +139,8 @@ function resolveBase(
 ): string {
   const config = loadedConfig?.config ?? null;
 
-  // Priority: CLI --base > preset base > config defaultBase > "standard"
-  const value = raw ?? presetBase ?? config?.defaultBase ?? "standard";
+  // Priority: CLI --base > config defaultBase > preset base > "standard"
+  const value = raw ?? config?.defaultBase ?? presetBase ?? "standard";
 
   // 1. Built-in name
   if (isBuiltinBase(value)) return value;
@@ -168,18 +172,23 @@ export function resolveConfig(
   loadedConfig: LoadedConfig | null,
 ): ModeConfig {
   const config = loadedConfig?.config ?? null;
-
-  // Resolve modifiers: defaultModifiers (config) → --modifier flags (CLI)
-  const flags = { readonly: parsed.modifiers.readonly, contextPacing: parsed.modifiers.contextPacing };
-  const customModifierPaths: string[] = [];
+  const modifierPaths: string[] = [];
 
   // 1. Config defaultModifiers — always applied first
   if (config?.defaultModifiers) {
-    applyModifiers(config.defaultModifiers, loadedConfig, flags, customModifierPaths, "append");
+    applyModifiers(config.defaultModifiers, loadedConfig, modifierPaths, "append");
   }
 
-  // 2. CLI --modifier flags — appended after defaults
-  applyModifiers(parsed.customModifiers, loadedConfig, flags, customModifierPaths, "append");
+  // 2. CLI boolean flags → inject as modifier names
+  if (parsed.modifiers.readonly) {
+    applyModifiers(["readonly"], loadedConfig, modifierPaths, "append");
+  }
+  if (parsed.modifiers.contextPacing) {
+    applyModifiers(["context-pacing"], loadedConfig, modifierPaths, "append");
+  }
+
+  // 3. CLI --modifier flags — appended after defaults
+  applyModifiers(parsed.customModifiers, loadedConfig, modifierPaths, "append");
 
   // Handle "none" preset — resolve base before early return
   if (parsed.preset === "none") {
@@ -187,11 +196,7 @@ export function resolveConfig(
     return {
       base,
       axes: null,
-      modifiers: {
-        readonly: flags.readonly,
-        contextPacing: flags.contextPacing,
-        custom: customModifierPaths,
-      },
+      modifiers: modifierPaths,
     };
   }
 
@@ -214,8 +219,16 @@ export function resolveConfig(
       scope = parsed.overrides.scope
         ? resolveAxisValue(parsed.overrides.scope, "scope", SCOPE_VALUES, loadedConfig)
         : preset.axes.scope;
-      flags.readonly = flags.readonly || preset.readonly;
-      // Built-in presets don't specify a base — presetBase stays undefined
+      presetBase = preset.base;
+
+      // Apply preset's readonly flag as a modifier
+      if (preset.readonly) {
+        applyModifiers(["readonly"], loadedConfig, modifierPaths, "prepend");
+      }
+      // Apply preset's built-in modifiers (before CLI modifiers)
+      if (preset.modifiers.length > 0) {
+        applyModifiers(preset.modifiers, loadedConfig, modifierPaths, "prepend");
+      }
     } else if (config?.presets && parsed.preset in config.presets) {
       // Config-defined preset
       const customPreset = config.presets[parsed.preset];
@@ -235,12 +248,18 @@ export function resolveConfig(
         : customPreset.scope
           ? resolveAxisValue(customPreset.scope, "scope", SCOPE_VALUES, loadedConfig)
           : DEFAULT_SCOPE;
-      if (customPreset.readonly) flags.readonly = true;
-      if (customPreset.contextPacing) flags.contextPacing = true;
+
+      // Apply config preset's boolean flags as modifiers
+      if (customPreset.readonly) {
+        applyModifiers(["readonly"], loadedConfig, modifierPaths, "prepend");
+      }
+      if (customPreset.contextPacing) {
+        applyModifiers(["context-pacing"], loadedConfig, modifierPaths, "prepend");
+      }
 
       // Resolve preset's modifiers list — inserted before CLI modifiers
       if (customPreset.modifiers) {
-        applyModifiers(customPreset.modifiers, loadedConfig, flags, customModifierPaths, "prepend");
+        applyModifiers(customPreset.modifiers, loadedConfig, modifierPaths, "prepend");
       }
     } else {
       throw new Error(
@@ -269,10 +288,6 @@ export function resolveConfig(
   return {
     base,
     axes: { agency, quality, scope },
-    modifiers: {
-      readonly: flags.readonly,
-      contextPacing: flags.contextPacing,
-      custom: customModifierPaths,
-    },
+    modifiers: modifierPaths,
   };
 }

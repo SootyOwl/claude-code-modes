@@ -349,6 +349,13 @@ describe("inspect — base section", () => {
     expect(output).toContain("Active: chill");
   });
 
+  test("debug preset shows chill base", () => {
+    const output = captureStdout(() => runInspectCommand(["debug"], PROMPTS_DIR));
+    expect(output).toContain("=== Base ===");
+    expect(output).toContain("Active: chill");
+    expect(output).toContain("modifiers/debug.md");
+  });
+
   test("Base section appears after Config section", () => {
     const output = captureStdout(() => runInspectCommand(["create"], PROMPTS_DIR));
     const configIdx = output.indexOf("=== Config ===");

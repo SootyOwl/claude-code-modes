@@ -43,32 +43,32 @@ describe("resolveConfig", () => {
     expect(config.axes).toBeNull();
   });
 
-  test("explore preset returns readonly true", () => {
+  test("explore preset includes readonly modifier", () => {
     const config = resolveConfig({ ...baseParsed, preset: "explore" }, null);
-    expect(config.modifiers.readonly).toBe(true);
+    expect(config.modifiers).toContain("modifiers/readonly.md");
   });
 
-  test("--readonly flag on any preset", () => {
+  test("--readonly flag on any preset adds readonly modifier", () => {
     const config = resolveConfig({
       ...baseParsed,
       preset: "create",
       modifiers: { readonly: true, print: false, contextPacing: false },
     }, null);
-    expect(config.modifiers.readonly).toBe(true);
+    expect(config.modifiers).toContain("modifiers/readonly.md");
   });
 
-  test("explore without --readonly is still readonly", () => {
+  test("explore without --readonly still has readonly modifier", () => {
     const config = resolveConfig({
       ...baseParsed,
       preset: "explore",
       modifiers: { readonly: false, print: false, contextPacing: false },
     }, null);
-    expect(config.modifiers.readonly).toBe(true);
+    expect(config.modifiers).toContain("modifiers/readonly.md");
   });
 
-  test("resolved ModeConfig.modifiers.custom is empty array by default", () => {
+  test("ModeConfig.modifiers is empty array by default", () => {
     const config = resolveConfig({ ...baseParsed, preset: "create" }, null);
-    expect(config.modifiers.custom).toEqual([]);
+    expect(config.modifiers).toEqual([]);
   });
 
   test("unknown preset throws descriptive error", () => {
@@ -99,12 +99,12 @@ describe("resolveConfig", () => {
     expect(config.axes?.agency).toMatch(/^\/.*custom-agency\.md$/);
   });
 
-  test("custom modifier file path resolves to absolute path", () => {
+  test("custom modifier file path resolves to absolute path in modifiers list", () => {
     const config = resolveConfig({
       ...baseParsed,
       customModifiers: ["/absolute/my-rules.md"],
     }, null);
-    expect(config.modifiers.custom).toEqual(["/absolute/my-rules.md"]);
+    expect(config.modifiers).toContain("/absolute/my-rules.md");
   });
 
   test("multiple custom modifiers are collected in order", () => {
@@ -112,7 +112,7 @@ describe("resolveConfig", () => {
       ...baseParsed,
       customModifiers: ["/path/a.md", "/path/b.md"],
     }, null);
-    expect(config.modifiers.custom).toEqual(["/path/a.md", "/path/b.md"]);
+    expect(config.modifiers).toEqual(["/path/a.md", "/path/b.md"]);
   });
 
   test("duplicate custom modifier paths are deduplicated", () => {
@@ -120,31 +120,100 @@ describe("resolveConfig", () => {
       ...baseParsed,
       customModifiers: ["/path/a.md", "/path/a.md"],
     }, null);
-    expect(config.modifiers.custom).toEqual(["/path/a.md"]);
+    expect(config.modifiers).toEqual(["/path/a.md"]);
   });
 
-  test("built-in modifier via --modifier sets readonly flag", () => {
+  test("built-in modifier 'readonly' via --modifier adds readonly fragment path", () => {
     const config = resolveConfig({
       ...baseParsed,
       customModifiers: ["readonly"],
     }, null);
-    expect(config.modifiers.readonly).toBe(true);
-    expect(config.modifiers.custom).toEqual([]);
+    expect(config.modifiers).toContain("modifiers/readonly.md");
+    expect(config.modifiers.filter((p) => p.startsWith("/")).length).toBe(0);
   });
 
-  test("built-in modifier via --modifier sets context-pacing flag", () => {
+  test("built-in modifier 'context-pacing' via --modifier adds context-pacing fragment path", () => {
     const config = resolveConfig({
       ...baseParsed,
       customModifiers: ["context-pacing"],
     }, null);
-    expect(config.modifiers.contextPacing).toBe(true);
-    expect(config.modifiers.custom).toEqual([]);
+    expect(config.modifiers).toContain("modifiers/context-pacing.md");
+  });
+
+  test("--readonly and --modifier readonly both add the same path (deduplicated)", () => {
+    const config = resolveConfig({
+      ...baseParsed,
+      modifiers: { readonly: true, print: false, contextPacing: false },
+      customModifiers: ["readonly"],
+    }, null);
+    expect(config.modifiers.filter((p) => p === "modifiers/readonly.md").length).toBe(1);
   });
 
   test("unknown modifier without path-like characters throws", () => {
     expect(() =>
       resolveConfig({ ...baseParsed, customModifiers: ["unknown-modifier"] }, null)
     ).toThrow('Unknown modifier: "unknown-modifier"');
+  });
+
+  // debug preset tests
+  test("debug preset resolves to collaborative/pragmatic/narrow axes", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "debug" }, null);
+    expect(config.axes).toEqual({ agency: "collaborative", quality: "pragmatic", scope: "narrow" });
+  });
+
+  test("debug preset resolves base to chill", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "debug" }, null);
+    expect(config.base).toBe("chill");
+  });
+
+  test("debug preset includes modifiers/debug.md", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "debug" }, null);
+    expect(config.modifiers).toContain("modifiers/debug.md");
+  });
+
+  test("debug --base standard overrides preset base", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "debug", base: "standard" }, null);
+    expect(config.base).toBe("standard");
+  });
+
+  test("debug --agency autonomous overrides preset agency", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "debug", overrides: { agency: "autonomous" } }, null);
+    expect(config.axes?.agency).toBe("autonomous");
+  });
+
+  test("config defaultBase standard overrides debug preset base", () => {
+    const loadedConfig: LoadedConfig = {
+      configDir: "/tmp/test",
+      config: { defaultBase: "standard" },
+    };
+    const config = resolveConfig({ ...baseParsed, preset: "debug" }, loadedConfig);
+    expect(config.base).toBe("standard");
+  });
+
+  // methodical preset tests
+  test("methodical preset resolves to surgical/architect/narrow axes", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "methodical" }, null);
+    expect(config.axes).toEqual({ agency: "surgical", quality: "architect", scope: "narrow" });
+  });
+
+  test("methodical preset resolves base to chill", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "methodical" }, null);
+    expect(config.base).toBe("chill");
+  });
+
+  test("methodical preset includes modifiers/methodical.md", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "methodical" }, null);
+    expect(config.modifiers).toContain("modifiers/methodical.md");
+  });
+
+  test("create --modifier debug adds debug modifier", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "create", customModifiers: ["debug"] }, null);
+    expect(config.modifiers).toContain("modifiers/debug.md");
+  });
+
+  test("create --modifier methodical adds methodical modifier", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "create", customModifiers: ["methodical"] }, null);
+    expect(config.modifiers).toContain("modifiers/methodical.md");
   });
 });
 
@@ -181,7 +250,7 @@ describe("resolveConfig with LoadedConfig", () => {
     expect(config.axes).toEqual({ agency: "collaborative", quality: "pragmatic", scope: "adjacent" });
   });
 
-  test("config-defined preset with readonly flag", () => {
+  test("config-defined preset with readonly flag adds readonly modifier", () => {
     const loadedConfig: LoadedConfig = {
       configDir,
       config: {
@@ -191,10 +260,10 @@ describe("resolveConfig with LoadedConfig", () => {
       },
     };
     const config = resolveConfig({ ...baseParsed, preset: "readonly-preset" }, loadedConfig);
-    expect(config.modifiers.readonly).toBe(true);
+    expect(config.modifiers).toContain("modifiers/readonly.md");
   });
 
-  test("config-defined preset with contextPacing flag", () => {
+  test("config-defined preset with contextPacing flag adds context-pacing modifier", () => {
     const loadedConfig: LoadedConfig = {
       configDir,
       config: {
@@ -204,7 +273,7 @@ describe("resolveConfig with LoadedConfig", () => {
       },
     };
     const config = resolveConfig({ ...baseParsed, preset: "pacing-preset" }, loadedConfig);
-    expect(config.modifiers.contextPacing).toBe(true);
+    expect(config.modifiers).toContain("modifiers/context-pacing.md");
   });
 
   test("config-defined axis name resolves to absolute path", () => {
@@ -234,7 +303,7 @@ describe("resolveConfig with LoadedConfig", () => {
       ...baseParsed,
       customModifiers: ["focus"],
     }, loadedConfig);
-    expect(config.modifiers.custom).toEqual([`${configDir}/focus-rules.md`]);
+    expect(config.modifiers).toContain(`${configDir}/focus-rules.md`);
   });
 
   test("defaultModifiers from config are always applied", () => {
@@ -245,10 +314,10 @@ describe("resolveConfig with LoadedConfig", () => {
       },
     };
     const config = resolveConfig(baseParsed, loadedConfig);
-    expect(config.modifiers.custom).toContain("/path/default.md");
+    expect(config.modifiers).toContain("/path/default.md");
   });
 
-  test("defaultModifiers can set readonly flag", () => {
+  test("defaultModifiers can include readonly modifier", () => {
     const loadedConfig: LoadedConfig = {
       configDir,
       config: {
@@ -256,7 +325,7 @@ describe("resolveConfig with LoadedConfig", () => {
       },
     };
     const config = resolveConfig(baseParsed, loadedConfig);
-    expect(config.modifiers.readonly).toBe(true);
+    expect(config.modifiers).toContain("modifiers/readonly.md");
   });
 
   test("defaultModifiers come before CLI modifiers", () => {
@@ -270,7 +339,11 @@ describe("resolveConfig with LoadedConfig", () => {
       ...baseParsed,
       customModifiers: ["/path/cli.md"],
     }, loadedConfig);
-    expect(config.modifiers.custom).toEqual(["/path/default.md", "/path/cli.md"]);
+    const defaultIdx = config.modifiers.indexOf("/path/default.md");
+    const cliIdx = config.modifiers.indexOf("/path/cli.md");
+    expect(defaultIdx).toBeGreaterThan(-1);
+    expect(cliIdx).toBeGreaterThan(-1);
+    expect(defaultIdx).toBeLessThan(cliIdx);
   });
 
   test("preset modifiers come before CLI modifiers", () => {
@@ -289,8 +362,11 @@ describe("resolveConfig with LoadedConfig", () => {
       preset: "my-preset",
       customModifiers: ["/path/cli.md"],
     }, loadedConfig);
-    expect(config.modifiers.custom[0]).toBe("/path/preset.md");
-    expect(config.modifiers.custom[1]).toBe("/path/cli.md");
+    const presetIdx = config.modifiers.indexOf("/path/preset.md");
+    const cliIdx = config.modifiers.indexOf("/path/cli.md");
+    expect(presetIdx).toBeGreaterThan(-1);
+    expect(cliIdx).toBeGreaterThan(-1);
+    expect(presetIdx).toBeLessThan(cliIdx);
   });
 
   test("unknown preset with config lists config presets in error", () => {
@@ -363,8 +439,8 @@ describe("resolveConfig with LoadedConfig", () => {
       },
     };
     const config = resolveConfig({ ...baseParsed, preset: "team" }, loadedConfig);
-    expect(config.modifiers.readonly).toBe(true);
-    expect(config.modifiers.custom.some((p) => p.endsWith("focus-rules.md"))).toBe(true);
+    expect(config.modifiers).toContain("modifiers/readonly.md");
+    expect(config.modifiers.some((p) => p.endsWith("focus-rules.md"))).toBe(true);
   });
 
   test("defaultModifiers with unknown name throws descriptive error", () => {
@@ -513,8 +589,32 @@ describe("resolveConfig — base resolution", () => {
     expect(config.base).toBe("standard");
   });
 
-  test("built-in preset does not affect base (defaults to standard)", () => {
-    const config = resolveConfig({ ...baseParsed, preset: "explore" }, null);
+  test("built-in preset without a base field defaults to standard", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "create" }, null);
+    expect(config.base).toBe("standard");
+  });
+
+  test("debug preset uses chill base by default", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "debug" }, null);
+    expect(config.base).toBe("chill");
+  });
+
+  test("methodical preset uses chill base by default", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "methodical" }, null);
+    expect(config.base).toBe("chill");
+  });
+
+  test("config defaultBase overrides debug preset base", () => {
+    const loadedConfig: LoadedConfig = {
+      configDir,
+      config: { defaultBase: "standard" },
+    };
+    const config = resolveConfig({ ...baseParsed, preset: "debug" }, loadedConfig);
+    expect(config.base).toBe("standard");
+  });
+
+  test("CLI --base overrides debug preset base", () => {
+    const config = resolveConfig({ ...baseParsed, preset: "debug", base: "standard" }, null);
     expect(config.base).toBe("standard");
   });
 });

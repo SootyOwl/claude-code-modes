@@ -39,6 +39,12 @@ describe("cli.ts help and usage", () => {
     expect(output).toContain("Examples:");
   });
 
+  test("--help shows debug and methodical presets", () => {
+    const output = run("--help");
+    expect(output).toContain("debug");
+    expect(output).toContain("methodical");
+  });
+
   test("-h prints usage", () => {
     const output = run("-h");
     expect(output).toContain("Usage: claude-mode");
@@ -104,6 +110,22 @@ describe("cli.ts preset --print", () => {
     expect(output).not.toContain("# Agency:");
     expect(output).not.toContain("# Quality:");
     expect(output).not.toContain("# Scope:");
+  });
+
+  test("debug: collaborative / pragmatic / narrow + investigation mode", () => {
+    const output = run("debug --print");
+    expect(output).toContain("# Agency: Collaborative");
+    expect(output).toContain("# Quality: Pragmatic");
+    expect(output).toContain("# Scope: Narrow");
+    expect(output).toContain("Investigation mode");
+  });
+
+  test("methodical: surgical / architect / narrow + methodical mode", () => {
+    const output = run("methodical --print");
+    expect(output).toContain("# Agency: Surgical");
+    expect(output).toContain("# Quality: Architect");
+    expect(output).toContain("# Scope: Narrow");
+    expect(output).toContain("Methodical mode");
   });
 
   test("all presets include environment section with CWD", () => {
@@ -324,7 +346,7 @@ describe("cli.ts invalid presets", () => {
   test("unknown preset name lists built-in presets", () => {
     const output = runExpectFail("nonexistent-preset --print");
     expect(output).toContain('Unknown preset: "nonexistent-preset"');
-    expect(output).toContain("create, extend, safe, refactor, explore, none");
+    expect(output).toContain("create, extend, safe, refactor, explore, none, debug, methodical");
   });
 
   test("typo in preset name shows helpful error", () => {
