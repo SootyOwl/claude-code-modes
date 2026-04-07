@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.2
+
+**Fixes**
+
+- npm OIDC publish: add explicit `id-token: write` permission to publish job and upgrade npm before publishing
+
+**Chill base**
+
+- Context pacing baked in by default — no `--context-pacing` flag needed when using `--base chill`
+- Added warm, grounding tone: opening affirmation, failures reframed as information, pacing section says "you have time to do this well"
+- Actions section opens with permission to act freely, reserves caution for genuinely risky operations
+
 ## v0.1.1
 
 **Fixes**
