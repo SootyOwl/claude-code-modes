@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1
+
+**Fixes**
+
+- CI: generate embedded prompts before typecheck step (fixes build failure on fresh checkout)
+
 ## v0.1.0
 
 **Features**
