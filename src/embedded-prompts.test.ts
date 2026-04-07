@@ -40,11 +40,13 @@ const EXPECTED_FRAGMENTS = [
   "modifiers/context-pacing.md",
   "modifiers/debug.md",
   "modifiers/methodical.md",
+  "modifiers/director.md",
+  "modifiers/bold.md",
 ] as const;
 
 describe("EMBEDDED_PROMPTS", () => {
-  test("contains exactly 27 fragments", () => {
-    expect(Object.keys(EMBEDDED_PROMPTS).length).toBe(27);
+  test("contains exactly 29 fragments", () => {
+    expect(Object.keys(EMBEDDED_PROMPTS).length).toBe(29);
   });
 
   test("all expected fragment keys are present", () => {

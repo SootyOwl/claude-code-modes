@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.1
+
+**Improvements**
+
+- Refined all three behavioral modifiers (`director`, `methodical`, `debug`) based on prompt quality evaluation against Anthropic emotion research criteria:
+  - **director**: Bolder, more confident tone — "you own the outcome" framing, stronger quality-gate language. Added priority hierarchy for when to break from delegation.
+  - **methodical**: Added two worked examples showing scoped, step-by-step execution. Added priority line (precision over speed).
+  - **debug**: Added second worked example covering partial-findings scenario. Added priority line (understanding over speed).
+- All three modifiers now score 10/10 on prompt quality criteria (up from 8-9/10). Zero negative instructions, zero ALL-CAPS markers, calm emotional tone preserved throughout.
+- New `bold` built-in modifier — activates confident, idiomatic code output. Counters post-training hedging with capability-affirming framing. Use via `--modifier bold` with any preset.
+
 ## v0.2.0
 
 **Breaking Changes**

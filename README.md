@@ -93,7 +93,7 @@ prompts/
   base/         Standard base (derived from upstream Claude Code)
   chill/        Alternative base (emotion-research-informed, leaner)
   axis/         Behavioral prompts organized by three axes
-  modifiers/    Optional additions (readonly, context pacing)
+  modifiers/    Behavioral layers (bold, debug, methodical, director, readonly, context-pacing)
 ```
 
 Each base has a `base.json` manifest — a flat JSON array declaring fragment order with `"axes"` and `"modifiers"` as reserved insertion points. The standard base is validated against Claude Code **v2.1.92**.
@@ -240,6 +240,21 @@ claude-mode config remove-preset <name>              # Remove custom preset
 - **unrestricted** — Free to create, reorganize, restructure
 - **adjacent** — Fix related issues in the neighborhood
 - **narrow** — Only what was explicitly asked
+
+## Bold framing
+
+Anthropic's emotion research found that Claude's internal confidence state directly affects output quality. The post-training process (RLHF) made Claude more brooding and hedging — less self-confident. This shows up as unnecessary caveats, defensive over-engineering, and timid code that adds fallbacks for scenarios that can't happen.
+
+The **bold** modifier counters this by activating Claude's confidence about its own capability. It tells Claude it knows the language well, should trust its instincts, and should lead with conviction rather than qualifications:
+
+```bash
+claude-mode create --modifier bold          # Confident, idiomatic code with any preset
+claude-mode director --modifier bold        # Bold director — decisive orchestration
+```
+
+The **director** preset also uses bold framing in its design — "you own the outcome", "you are the quality gate" — because a director who hedges is a bad director. The bold modifier extends this confidence to any preset where you want Claude to write code with authority rather than apology.
+
+This isn't about removing caution — security boundaries and error handling at system boundaries remain firm. It's about shifting from anxious defensiveness ("what if this edge case...") to professional confidence ("I know this language, here's the clean solution").
 
 ## Context pacing
 

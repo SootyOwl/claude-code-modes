@@ -66,9 +66,9 @@ All modifiers are fragment-based — they resolve to markdown files that get ins
 
 - `--readonly` — Shorthand for `--modifier readonly`. Appends readonly instructions.
 - `--context-pacing` — Shorthand for `--modifier context-pacing`. Appends context pacing instructions.
-- `--modifier <name|path>` — Appends a modifier fragment. Repeatable. Accepts built-in names (`readonly`, `context-pacing`, `debug`, `methodical`, `director`), config-defined names, or file paths.
+- `--modifier <name|path>` — Appends a modifier fragment. Repeatable. Accepts built-in names (`readonly`, `context-pacing`, `debug`, `methodical`, `director`, `bold`), config-defined names, or file paths.
 
-Built-in modifiers: `readonly`, `context-pacing`, `debug`, `methodical`, `director`. The `debug`, `methodical`, and `director` presets include their respective modifiers automatically.
+Built-in modifiers: `readonly`, `context-pacing`, `debug`, `methodical`, `director`, `bold`. The `debug`, `methodical`, and `director` presets include their respective modifiers automatically.
 - `--append-system-prompt <text>` — Forwarded directly to `claude`.
 - `--append-system-prompt-file <path>` — Forwarded directly to `claude`.
 
@@ -257,7 +257,8 @@ claude-code-modes/
 │       ├── readonly.md
 │       ├── debug.md
 │       ├── methodical.md
-│       └── director.md
+│       ├── director.md
+│       └── bold.md
 ├── VISION.md
 ├── SPEC.md
 └── PROMPT-AUDIT.md

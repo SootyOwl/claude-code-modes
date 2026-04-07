@@ -18,7 +18,7 @@ describe("generate-prompts.ts", () => {
     expect(content).toContain("EMBEDDED_PROMPTS");
     // Count fragment entries (lines with "path": ` pattern) — includes .md and .json files
     const entries = content.match(/^\s+"(?:base|chill|axis|modifiers)\/[a-z/\-.]+": `/gm);
-    expect(entries).toHaveLength(27);
+    expect(entries).toHaveLength(29);
   });
 
   test("generated file has auto-generated header comment", () => {

@@ -46,6 +46,8 @@ const FRAGMENT_PATHS = [
   "modifiers/context-pacing.md",
   "modifiers/debug.md",
   "modifiers/methodical.md",
+  "modifiers/director.md",
+  "modifiers/bold.md",
 ] as const;
 
 function escapeTemplateLiteral(content: string): string {

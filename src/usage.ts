@@ -51,6 +51,7 @@ Examples:
   claude-mode debug                           # investigation-first debugging
   claude-mode methodical                      # step-by-step precision
   claude-mode director                        # delegate to sub-agents
+  claude-mode create --modifier bold          # confident, idiomatic code
   claude-mode create -- --verbose --model sonnet`;
 
   process.stdout.write(usage + "\n");

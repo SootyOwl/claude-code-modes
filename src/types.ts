@@ -24,7 +24,7 @@ export function isPresetName(value: string): value is PresetName {
 }
 
 // Built-in modifier names — used for collision checking in config validation
-export const BUILTIN_MODIFIER_NAMES = ["readonly", "context-pacing", "debug", "methodical", "director"] as const;
+export const BUILTIN_MODIFIER_NAMES = ["readonly", "context-pacing", "debug", "methodical", "director", "bold"] as const;
 export type BuiltinModifier = (typeof BUILTIN_MODIFIER_NAMES)[number];
 export function isBuiltinModifier(value: string): value is BuiltinModifier {
   return (BUILTIN_MODIFIER_NAMES as readonly string[]).includes(value);
