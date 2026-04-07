@@ -10,6 +10,8 @@ import {
   BUILTIN_MODIFIER_NAMES,
   BUILTIN_BASE_NAMES,
   PRESET_NAMES,
+  isBuiltinModifier,
+  isBuiltinBase,
 } from "./types.js";
 import { resolve as pathResolve, isAbsolute } from "node:path";
 
@@ -70,7 +72,7 @@ function resolveModifier(
   loadedConfig: LoadedConfig | null,
 ): { kind: "builtin"; name: string } | { kind: "custom"; path: string } {
   // 1. Built-in modifier
-  if ((BUILTIN_MODIFIER_NAMES as readonly string[]).includes(raw)) {
+  if (isBuiltinModifier(raw)) {
     return { kind: "builtin", name: raw };
   }
 
@@ -137,7 +139,7 @@ function resolveBase(
   const value = raw ?? presetBase ?? config?.defaultBase ?? "standard";
 
   // 1. Built-in name
-  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(value)) return value;
+  if (isBuiltinBase(value)) return value;
 
   // 2. Config-defined name
   const configBases = config?.bases;

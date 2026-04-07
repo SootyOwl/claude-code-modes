@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname, resolve, isAbsolute } from "node:path";
 import { homedir } from "node:os";
-import { PRESET_NAMES, BUILTIN_MODIFIER_NAMES, AXIS_BUILTINS, BUILTIN_BASE_NAMES } from "./types.js";
+import { PRESET_NAMES, BUILTIN_MODIFIER_NAMES, AXIS_BUILTINS, BUILTIN_BASE_NAMES, isBuiltinModifier, isPresetName, isBuiltinBase, isBuiltinAxisValue } from "./types.js";
 
 /** Matches paths that reference potentially sensitive files (SSH keys, credentials, etc.) */
 const SUSPICIOUS_PATH_PATTERN = /\.(ssh|env|gnupg|aws|kube|docker|pgpass)|\.npmrc|\.netrc|id_rsa|id_ed25519|id_ecdsa|credentials|secret|token|password|private/i;
@@ -55,7 +55,7 @@ export interface LoadedConfig {
 
 /** Throws if name collides with a built-in modifier name. */
 export function checkModifierNameCollision(name: string): void {
-  if ((BUILTIN_MODIFIER_NAMES as readonly string[]).includes(name)) {
+  if (isBuiltinModifier(name)) {
     throw new Error(
       `"${name}" is a built-in modifier name (${BUILTIN_MODIFIER_NAMES.join(", ")}); choose a different name`
     );
@@ -64,7 +64,7 @@ export function checkModifierNameCollision(name: string): void {
 
 /** Throws if name collides with a built-in preset name. */
 export function checkPresetNameCollision(name: string): void {
-  if ((PRESET_NAMES as readonly string[]).includes(name)) {
+  if (isPresetName(name)) {
     throw new Error(
       `"${name}" is a built-in preset name (${PRESET_NAMES.join(", ")}); choose a different name`
     );
@@ -73,7 +73,7 @@ export function checkPresetNameCollision(name: string): void {
 
 /** Throws if name collides with a built-in base name. */
 export function checkBaseNameCollision(name: string): void {
-  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(name)) {
+  if (isBuiltinBase(name)) {
     throw new Error(
       `"${name}" is a built-in base name (${BUILTIN_BASE_NAMES.join(", ")}); choose a different name`
     );
@@ -83,7 +83,7 @@ export function checkBaseNameCollision(name: string): void {
 /** Throws if name collides with a built-in value for the given axis. */
 export function checkAxisValueCollision(axis: "agency" | "quality" | "scope", name: string): void {
   const builtins = AXIS_BUILTINS[axis];
-  if ((builtins as readonly string[]).includes(name)) {
+  if (isBuiltinAxisValue(axis, name)) {
     throw new Error(
       `"${name}" is a built-in ${axis} value (${builtins.join(", ")}); choose a different name`
     );
@@ -134,6 +134,42 @@ export function loadConfig(): LoadedConfig | null {
   return null;
 }
 
+/** Validates a value is a Record<string, string>. Returns the typed record or throws. */
+function validateStringRecord(
+  value: unknown,
+  fieldName: string,
+  configPath: string,
+): Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(
+      `Invalid config file ${configPath}: "${fieldName}" must be an object (Record<string, string>)`
+    );
+  }
+  const record = value as Record<string, unknown>;
+  for (const [key, val] of Object.entries(record)) {
+    if (typeof val !== "string") {
+      throw new Error(
+        `Invalid config file ${configPath}: "${fieldName}.${key}" must be a string`
+      );
+    }
+  }
+  return record as Record<string, string>;
+}
+
+/** Validates a value is a string[]. Returns the typed array or throws. */
+function validateStringArray(
+  value: unknown,
+  fieldName: string,
+  configPath: string,
+): string[] {
+  if (!Array.isArray(value) || !value.every((v) => typeof v === "string")) {
+    throw new Error(
+      `Invalid config file ${configPath}: "${fieldName}" must be an array of strings`
+    );
+  }
+  return value as string[];
+}
+
 /**
  * Validates the loaded config object. Throws descriptive errors for:
  * - Non-object top-level value
@@ -159,33 +195,15 @@ function validateConfig(raw: unknown, configPath: string): UserConfig {
 
   // Validate bases map
   if (obj.bases !== undefined) {
-    if (typeof obj.bases !== "object" || obj.bases === null || Array.isArray(obj.bases)) {
-      throw new Error(
-        `Invalid config file ${configPath}: "bases" must be an object (Record<string, string>)`
-      );
-    }
-    for (const [key, val] of Object.entries(obj.bases as Record<string, unknown>)) {
-      if (typeof val !== "string") {
-        throw new Error(
-          `Invalid config file ${configPath}: "bases.${key}" must be a string`
-        );
-      }
-      checkBaseNameCollision(key);
-    }
+    const bases = validateStringRecord(obj.bases, "bases", configPath);
+    for (const key of Object.keys(bases)) checkBaseNameCollision(key);
   }
 
   // Validate defaultModifiers
   if (obj.defaultModifiers !== undefined) {
-    if (
-      !Array.isArray(obj.defaultModifiers) ||
-      !obj.defaultModifiers.every((v) => typeof v === "string")
-    ) {
-      throw new Error(
-        `Invalid config file ${configPath}: "defaultModifiers" must be an array of strings`
-      );
-    }
+    const defaultModifiers = validateStringArray(obj.defaultModifiers, "defaultModifiers", configPath);
     // Validate file path entries in defaultModifiers
-    for (const entry of obj.defaultModifiers as string[]) {
+    for (const entry of defaultModifiers) {
       if (entry.includes("/") || entry.includes("\\") || entry.endsWith(".md")) {
         validateConfigDefinedPath(entry, `"defaultModifiers" entry "${entry}"`, configPath);
       }
@@ -194,17 +212,8 @@ function validateConfig(raw: unknown, configPath: string): UserConfig {
 
   // Validate modifiers map
   if (obj.modifiers !== undefined) {
-    if (typeof obj.modifiers !== "object" || obj.modifiers === null || Array.isArray(obj.modifiers)) {
-      throw new Error(
-        `Invalid config file ${configPath}: "modifiers" must be an object (Record<string, string>)`
-      );
-    }
-    for (const [key, val] of Object.entries(obj.modifiers as Record<string, unknown>)) {
-      if (typeof val !== "string") {
-        throw new Error(
-          `Invalid config file ${configPath}: "modifiers.${key}" must be a string`
-        );
-      }
+    const modifiers = validateStringRecord(obj.modifiers, "modifiers", configPath);
+    for (const [key, val] of Object.entries(modifiers)) {
       checkModifierNameCollision(key);
       validateConfigDefinedPath(val, `"modifiers.${key}"`, configPath);
     }
@@ -220,21 +229,8 @@ function validateConfig(raw: unknown, configPath: string): UserConfig {
     const axesObj = obj.axes as Record<string, unknown>;
     for (const axisName of ["agency", "quality", "scope"] as const) {
       if (axesObj[axisName] !== undefined) {
-        if (
-          typeof axesObj[axisName] !== "object" ||
-          axesObj[axisName] === null ||
-          Array.isArray(axesObj[axisName])
-        ) {
-          throw new Error(
-            `Invalid config file ${configPath}: "axes.${axisName}" must be an object (Record<string, string>)`
-          );
-        }
-        for (const [key, val] of Object.entries(axesObj[axisName] as Record<string, unknown>)) {
-          if (typeof val !== "string") {
-            throw new Error(
-              `Invalid config file ${configPath}: "axes.${axisName}.${key}" must be a string`
-            );
-          }
+        const axisMap = validateStringRecord(axesObj[axisName], `axes.${axisName}`, configPath);
+        for (const [key, val] of Object.entries(axisMap)) {
           validateConfigDefinedPath(val, `"axes.${axisName}.${key}"`, configPath);
         }
       }

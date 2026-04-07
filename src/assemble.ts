@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { join, resolve, isAbsolute } from "node:path";
 import { tmpdir } from "node:os";
 import type { AssembleOptions, TemplateVars, ModeConfig, BaseManifest } from "./types.js";
-import { BUILTIN_BASE_NAMES } from "./types.js";
+import { isBuiltinBase } from "./types.js";
 import { EMBEDDED_PROMPTS } from "./embedded-prompts.js";
 
 /**
@@ -45,7 +45,7 @@ export function substituteTemplateVars(content: string, vars: TemplateVars): str
 
 /** Loads a base manifest. Built-in bases use embedded data; custom bases read from disk. */
 function loadBaseManifest(base: string, promptsDir: string): { manifest: BaseManifest; baseDir: string } {
-  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(base)) {
+  if (isBuiltinBase(base)) {
     // Built-in: manifest is embedded
     const manifestKey = base === "standard" ? "base/base.json" : `${base}/base.json`;
     const raw = EMBEDDED_PROMPTS[manifestKey];
@@ -83,7 +83,7 @@ function validateManifest(manifest: BaseManifest, baseName: string): void {
 
 /** Resolves a fragment filename to an embedded key or absolute path. */
 function resolveFragmentPath(filename: string, baseDir: string, baseName: string): string {
-  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(baseName)) {
+  if (isBuiltinBase(baseName)) {
     const prefix = baseName === "standard" ? "base" : baseName;
     return `${prefix}/${filename}`;
   }

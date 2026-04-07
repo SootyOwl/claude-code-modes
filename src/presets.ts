@@ -1,5 +1,5 @@
 import type { AxisConfig, PresetName } from "./types.js";
-import { PRESET_NAMES } from "./types.js";
+export { isPresetName } from "./types.js";
 
 export interface PresetDefinition {
   axes: AxisConfig | null;
@@ -37,6 +37,3 @@ export function getPreset(name: PresetName): PresetDefinition {
   return PRESETS[name];
 }
 
-export function isPresetName(value: string): value is PresetName {
-  return (PRESET_NAMES as readonly string[]).includes(value);
-}

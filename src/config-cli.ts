@@ -9,7 +9,8 @@ import {
   checkPresetNameCollision,
   checkAxisValueCollision,
 } from "./config.js";
-const VALID_AXES = ["agency", "quality", "scope"] as const;
+import { AXIS_BUILTINS } from "./types.js";
+const VALID_AXES = Object.keys(AXIS_BUILTINS) as Array<"agency" | "quality" | "scope">;
 type ValidAxis = (typeof VALID_AXES)[number];
 
 function getConfigPath(isGlobal: boolean): string {
@@ -120,7 +121,7 @@ function configRemoveModifier(configPath: string, name: string): void {
 }
 
 function configAddAxis(configPath: string, axis: string, name: string, mdPath: string): void {
-  if (!(VALID_AXES as readonly string[]).includes(axis)) {
+  if (!VALID_AXES.includes(axis as ValidAxis)) {
     throw new Error(
       `Invalid axis "${axis}"; must be one of: ${VALID_AXES.join(", ")}`
     );
@@ -139,7 +140,7 @@ function configAddAxis(configPath: string, axis: string, name: string, mdPath: s
 }
 
 function configRemoveAxis(configPath: string, axis: string, name: string): void {
-  if (!(VALID_AXES as readonly string[]).includes(axis)) {
+  if (!VALID_AXES.includes(axis as ValidAxis)) {
     throw new Error(
       `Invalid axis "${axis}"; must be one of: ${VALID_AXES.join(", ")}`
     );
