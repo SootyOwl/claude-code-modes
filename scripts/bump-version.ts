@@ -84,7 +84,7 @@ try {
   run("bun scripts/generate-prompts.ts");
 
   // Stage files
-  run("git add package.json src/embedded-prompts.ts");
+  run("git add package.json");
 
   // Commit
   run(`git commit -m "Release ${tag}"`);
