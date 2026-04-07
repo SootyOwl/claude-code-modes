@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.0
+
+**Breaking Changes**
+
+- `ModeConfig.modifiers` changed from `{ readonly: boolean; contextPacing: boolean; custom: string[] }` to `string[]` — a flat ordered list of modifier fragment paths. Any code constructing or reading `ModeConfig` directly needs updating.
+
+**Features**
+
+- Two new presets: `debug` (collaborative/pragmatic/narrow, chill base) — investigation-first problem solving with evidence gathering and graceful stuck-handling; `methodical` (surgical/architect/narrow, chill base) — step-by-step craftsmanship with explicit stop-when-done behavior
+- `director` preset (autonomous/architect/unrestricted, chill base) — delegate implementation to sub-agents, orchestrate and verify results
+- Unified modifier model: all built-in modifiers are fragment-based. `--modifier readonly` now works identically to `--readonly`; `--modifier context-pacing` works identically to `--context-pacing`. Adding new built-in modifiers requires only a name in `BUILTIN_MODIFIER_NAMES` plus a `.md` file.
+- Preset base support: built-in presets can specify a default base via `PresetDefinition.base`. Priority chain: CLI `--base` > config `defaultBase` > preset `base` > `"standard"`
+- Preset modifiers support: built-in presets can include modifiers via `PresetDefinition.modifiers`
+
 ## v0.1.3
 
 **Fixes**
