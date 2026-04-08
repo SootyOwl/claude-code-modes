@@ -9,6 +9,7 @@ import { detectEnv, buildTemplateVars } from "./env.js";
 import { runConfigCommand } from "./config-cli.js";
 import { runInspectCommand } from "./inspect.js";
 import { printUsage } from "./usage.js";
+import { printCompletions } from "./completions.js";
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -37,6 +38,22 @@ async function main(): Promise<void> {
   if (argv[0] === "inspect") {
     try {
       runInspectCommand(argv.slice(1), promptsDir);
+    } catch (err) {
+      process.stderr.write(`Error: ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+
+  // Completion subcommand routing
+  if (argv[0] === "completion") {
+    const shell = argv[1] as "bash" | "zsh" | "fish" | undefined;
+    if (!shell || !["bash", "zsh", "fish"].includes(shell)) {
+      process.stderr.write("Usage: claude-mode completion <bash|zsh|fish>\n");
+      process.exit(1);
+    }
+    try {
+      printCompletions(shell);
     } catch (err) {
       process.stderr.write(`Error: ${(err as Error).message}\n`);
       process.exit(1);

@@ -4,6 +4,7 @@ export function printUsage(): void {
 Subcommands:
   config            Manage configuration
   inspect [--print] Show prompt assembly plan with provenance and warnings
+  completion <bash|zsh|fish>  Generate shell completion script
 
 Presets:
   create          autonomous / architect / unrestricted
