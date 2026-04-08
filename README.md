@@ -27,6 +27,23 @@ Requires [Bun](https://bun.sh/) and [Claude Code](https://docs.anthropic.com/en/
 
 > **Migrating from an older git clone?** If you previously used `./claude-mode` directly from the repo, that bash wrapper has been removed. Run `bun link` in the repo to put `claude-mode` on your PATH via the package.json bin entry, or switch to the binary install above.
 
+**Shell completions:**
+
+Enable tab completion for bash, zsh, or fish:
+
+```bash
+# Bash
+eval "$(claude-mode completion bash)"
+
+# Zsh
+eval "$(claude-mode completion zsh)"
+
+# Fish
+claude-mode completion fish > ~/.config/fish/completions/claude-mode.fish
+```
+
+See [docs/completions.md](docs/completions.md) for detailed installation instructions.
+
 ## Usage
 
 Pick a preset that matches your task:
