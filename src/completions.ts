@@ -1,10 +1,10 @@
 import { PRESET_NAMES, BUILTIN_BASE_NAMES, AGENCY_VALUES, QUALITY_VALUES, SCOPE_VALUES } from "./types.js";
 
-const SUBCOMMANDS = ["config", "inspect"];
+const SUBCOMMANDS = ["config", "inspect", "completion"];
 const CONFIG_SUBCOMMANDS = [
   "show", "init", "add-default", "remove-default",
   "add-modifier", "remove-modifier", "add-axis", "remove-axis",
-  "add-preset", "remove-preset"
+  "add-preset", "remove-preset", "help"
 ];
 const AXES = ["agency", "quality", "scope"];
 
@@ -26,21 +26,31 @@ _claude_mode_completion() {
 
     # Handle config subcommand
     if [[ \${words[1]} == "config" ]] && [[ \$cword -ge 2 ]]; then
-        if [[ \$cword -eq 2 ]]; then
+        # Complete --global flag anywhere in config
+        if [[ \$cur == -* ]]; then
+            COMPREPLY=( $(compgen -W "--global" -- "\$cur") )
+            return
+        fi
+        if [[ \$cword -eq 2 ]] || [[ \${words[2]} == "--global" && \$cword -eq 3 ]]; then
             COMPREPLY=( $(compgen -W "${configSubcommands}" -- "\$cur") )
             return
         fi
-        case "\${words[2]}" in
+        # Determine actual subcommand position (accounting for --global)
+        local subcmd_idx=2
+        if [[ \${words[2]} == "--global" ]]; then
+            subcmd_idx=3
+        fi
+        case "\${words[\$subcmd_idx]}" in
             add-axis)
-                if [[ \$cword -eq 3 ]]; then
+                if [[ \$cword -eq \$((subcmd_idx + 1)) ]]; then
                     COMPREPLY=( $(compgen -W "${axes}" -- "\$cur") )
-                elif [[ \$cword -eq 5 ]]; then
+                elif [[ \$cword -eq \$((subcmd_idx + 3)) ]]; then
                     COMPREPLY=( $(compgen -f -- "\$cur") )
                 fi
                 return
                 ;;
             remove-axis)
-                if [[ \$cword -eq 3 ]]; then
+                if [[ \$cword -eq \$((subcmd_idx + 1)) ]]; then
                     COMPREPLY=( $(compgen -W "${axes}" -- "\$cur") )
                 fi
                 return
@@ -51,6 +61,11 @@ _claude_mode_completion() {
                 ;;
             add-preset)
                 # Handle preset flags
+                if [[ \$cur == -* ]]; then
+                    local preset_opts="--agency --quality --scope --modifier --readonly --context-pacing"
+                    COMPREPLY=( $(compgen -W "\$preset_opts" -- "\$cur") )
+                    return
+                fi
                 case "\$prev" in
                     --agency)
                         COMPREPLY=( $(compgen -W "${agencies}" -- "\$cur") )
@@ -64,6 +79,10 @@ _claude_mode_completion() {
                         COMPREPLY=( $(compgen -W "${scopes}" -- "\$cur") )
                         return
                         ;;
+                    --modifier)
+                        COMPREPLY=( $(compgen -f -- "\$cur") )
+                        return
+                        ;;
                 esac
                 ;;
         esac
@@ -73,7 +92,40 @@ _claude_mode_completion() {
     # Handle inspect subcommand
     if [[ \${words[1]} == "inspect" ]]; then
         if [[ \$cur == -* ]]; then
-            COMPREPLY=( $(compgen -W "--print" -- "\$cur") )
+            local opts="--base --agency --quality --scope --modifier --readonly --context-pacing --print --append-system-prompt --append-system-prompt-file --help"
+            COMPREPLY=( $(compgen -W "\$opts" -- "\$cur") )
+            return
+        fi
+        # Also handle option values for inspect
+        case "\$prev" in
+            --base)
+                COMPREPLY=( $(compgen -W "${bases}" -f -- "\$cur") )
+                return
+                ;;
+            --agency)
+                COMPREPLY=( $(compgen -W "${agencies}" -f -- "\$cur") )
+                return
+                ;;
+            --quality)
+                COMPREPLY=( $(compgen -W "${qualities}" -f -- "\$cur") )
+                return
+                ;;
+            --scope)
+                COMPREPLY=( $(compgen -W "${scopes}" -f -- "\$cur") )
+                return
+                ;;
+            --modifier|--append-system-prompt-file)
+                COMPREPLY=( $(compgen -f -- "\$cur") )
+                return
+                ;;
+        esac
+        return
+    fi
+
+    # Handle completion subcommand
+    if [[ \${words[1]} == "completion" ]]; then
+        if [[ \$cword -eq 2 ]]; then
+            COMPREPLY=( $(compgen -W "bash zsh fish" -- "\$cur") )
         fi
         return
     fi
@@ -143,6 +195,7 @@ _claude_mode() {
     subcommands=(
         'config:Manage configuration'
         'inspect:Show prompt assembly plan with provenance and warnings'
+        'completion:Generate shell completion script'
     )
 
     config_subcommands=(
@@ -156,6 +209,7 @@ _claude_mode() {
         'remove-axis:Unregister custom axis value'
         'add-preset:Create custom preset'
         'remove-preset:Remove custom preset'
+        'help:Show config help'
     )
 
     axes=(
@@ -190,6 +244,7 @@ _claude_mode() {
                 config)
                     _arguments \\
                         '1: :(\$config_subcommands)' \\
+                        '--global[Use global config]' \\
                         '*::arg:->config_args'
 
                     case \$words[2] in
@@ -197,12 +252,14 @@ _claude_mode() {
                             _arguments \\
                                 '1: :(\$axes)' \\
                                 '2: :' \\
-                                '3: :_files'
+                                '3: :_files' \\
+                                '--global[Use global config]'
                             ;;
                         remove-axis)
                             _arguments \\
                                 '1: :(\$axes)' \\
-                                '2: :'
+                                '2: :' \\
+                                '--global[Use global config]'
                             ;;
                         add-preset)
                             _arguments \\
@@ -210,13 +267,30 @@ _claude_mode() {
                                 '--agency:agency:(${agencies})' \\
                                 '--quality:quality:(${qualities})' \\
                                 '--scope:scope:(${scopes})' \\
-                                '--modifier:modifier:'
+                                '--modifier:modifier:' \\
+                                '--readonly[Prevent file modifications]' \\
+                                '--context-pacing[Include context pacing prompt]' \\
+                                '--global[Use global config]'
                             ;;
                     esac
                     ;;
                 inspect)
                     _arguments \\
-                        '--print[Print the prompt]'
+                        '--base[Base prompt]:base:(${bases} _files)' \\
+                        '--agency[Agency level]:agency:(${agencies} _files)' \\
+                        '--quality[Quality level]:quality:(${qualities} _files)' \\
+                        '--scope[Scope level]:scope:(${scopes} _files)' \\
+                        '--modifier[Custom modifier]:file:_files' \\
+                        '--readonly[Prevent file modifications]' \\
+                        '--context-pacing[Include context pacing prompt]' \\
+                        '--print[Print assembled prompt instead of launching claude]' \\
+                        '--append-system-prompt[Append text to system prompt]:text:' \\
+                        '--append-system-prompt-file[Append file to system prompt]:file:_files' \\
+                        '--help[Show help]'
+                    ;;
+                completion)
+                    _arguments \\
+                        '1: :(bash zsh fish)'
                     ;;
             esac
             ;;
@@ -242,9 +316,15 @@ complete -c claude-mode -f
 # Subcommands
 complete -c claude-mode -n "__fish_use_subcommand" -a "config" -d "Manage configuration"
 complete -c claude-mode -n "__fish_use_subcommand" -a "inspect" -d "Show prompt assembly plan"
+complete -c claude-mode -n "__fish_use_subcommand" -a "completion" -d "Generate shell completions"
 
 # Presets
 ${presets}
+
+# Completion subcommand shells
+complete -c claude-mode -n "__fish_seen_subcommand_from completion" -a "bash" -d "Generate Bash completions"
+complete -c claude-mode -n "__fish_seen_subcommand_from completion" -a "zsh" -d "Generate Zsh completions"
+complete -c claude-mode -n "__fish_seen_subcommand_from completion" -a "fish" -d "Generate Fish completions"
 
 # Config subcommands
 complete -c claude-mode -n "__fish_seen_subcommand_from config" -a "show" -d "Print current config"
@@ -257,9 +337,23 @@ complete -c claude-mode -n "__fish_seen_subcommand_from config" -a "add-axis" -d
 complete -c claude-mode -n "__fish_seen_subcommand_from config" -a "remove-axis" -d "Unregister custom axis value"
 complete -c claude-mode -n "__fish_seen_subcommand_from config" -a "add-preset" -d "Create custom preset"
 complete -c claude-mode -n "__fish_seen_subcommand_from config" -a "remove-preset" -d "Remove custom preset"
+complete -c claude-mode -n "__fish_seen_subcommand_from config" -a "help" -d "Show config help"
 
-# Inspect options
+# Config global flag
+complete -c claude-mode -n "__fish_seen_subcommand_from config" -l global -d "Use global config"
+
+# Inspect options (all main flags plus --print)
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l base -d "Base prompt" -r
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l agency -d "Agency level" -r
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l quality -d "Quality level" -r
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l scope -d "Scope level" -r
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l modifier -d "Custom modifier" -r -F
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l readonly -d "Prevent file modifications"
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l context-pacing -d "Include context pacing prompt"
 complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l print -d "Print the prompt"
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l append-system-prompt -d "Append text to system prompt" -r
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l append-system-prompt-file -d "Append file to system prompt" -r -F
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l help -d "Show help"
 
 # Main options
 complete -c claude-mode -l base -d "Base prompt" -r

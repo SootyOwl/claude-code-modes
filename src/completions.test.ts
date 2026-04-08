@@ -17,6 +17,10 @@ describe("completions", () => {
       // Check for subcommands
       expect(result).toContain("config");
       expect(result).toContain("inspect");
+      expect(result).toContain("completion");
+
+      // Check for completion shells
+      expect(result).toContain("bash zsh fish");
 
       // Check for axis values
       expect(result).toContain("autonomous");
@@ -46,6 +50,10 @@ describe("completions", () => {
       // Check for subcommands
       expect(result).toContain("'config:Manage configuration'");
       expect(result).toContain("'inspect:Show prompt assembly plan");
+      expect(result).toContain("'completion:Generate shell completion script'");
+
+      // Check for completion shells
+      expect(result).toContain("'1: :(bash zsh fish)'");
 
       // Check for options
       expect(result).toContain("'--base[Base prompt]");
@@ -68,6 +76,12 @@ describe("completions", () => {
       // Check for subcommands
       expect(result).toContain('complete -c claude-mode -n "__fish_use_subcommand" -a "config"');
       expect(result).toContain('complete -c claude-mode -n "__fish_use_subcommand" -a "inspect"');
+      expect(result).toContain('complete -c claude-mode -n "__fish_use_subcommand" -a "completion"');
+
+      // Check for completion shells
+      expect(result).toContain('complete -c claude-mode -n "__fish_seen_subcommand_from completion" -a "bash"');
+      expect(result).toContain('complete -c claude-mode -n "__fish_seen_subcommand_from completion" -a "zsh"');
+      expect(result).toContain('complete -c claude-mode -n "__fish_seen_subcommand_from completion" -a "fish"');
 
       // Check for config subcommands
       expect(result).toContain('complete -c claude-mode -n "__fish_seen_subcommand_from config" -a "show"');
