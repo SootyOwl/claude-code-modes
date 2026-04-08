@@ -22,16 +22,26 @@ export function generateBashCompletion(): string {
 
 _claude_mode_completion() {
     local cur prev words cword
-    _init_completion || return
+    if declare -F _init_completion >/dev/null 2>&1; then
+        _init_completion || return
+    else
+        words=("\${COMP_WORDS[@]}")
+        cword=\${COMP_CWORD}
+        cur="\${COMP_WORDS[COMP_CWORD]}"
+        if [[ \$cword -gt 0 ]]; then
+            prev="\${COMP_WORDS[COMP_CWORD-1]}"
+        else
+            prev=""
+        fi
+    fi
 
     # Handle config subcommand
     if [[ \${words[1]} == "config" ]] && [[ \$cword -ge 2 ]]; then
-        # Complete --global flag anywhere in config
-        if [[ \$cur == -* ]]; then
-            COMPREPLY=( $(compgen -W "--global" -- "\$cur") )
+        if [[ \$cword -eq 2 ]]; then
+            COMPREPLY=( $(compgen -W "--global ${configSubcommands}" -- "\$cur") )
             return
         fi
-        if [[ \$cword -eq 2 ]] || [[ \${words[2]} == "--global" && \$cword -eq 3 ]]; then
+        if [[ \${words[2]} == "--global" && \$cword -eq 3 ]]; then
             COMPREPLY=( $(compgen -W "${configSubcommands}" -- "\$cur") )
             return
         fi
@@ -177,7 +187,6 @@ complete -F _claude_mode_completion claude-mode
 }
 
 export function generateZshCompletion(): string {
-  const presets = PRESET_NAMES.map(p => `'${p}:${getPresetDescription(p)}'`).join(" ");
   const bases = BUILTIN_BASE_NAMES.map(b => `'${b}'`).join(" ");
   const agencies = AGENCY_VALUES.map(a => `'${a}'`).join(" ");
   const qualities = QUALITY_VALUES.map(q => `'${q}'`).join(" ");
@@ -343,10 +352,10 @@ complete -c claude-mode -n "__fish_seen_subcommand_from config" -a "help" -d "Sh
 complete -c claude-mode -n "__fish_seen_subcommand_from config" -l global -d "Use global config"
 
 # Inspect options (all main flags plus --print)
-complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l base -d "Base prompt" -r
-complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l agency -d "Agency level" -r
-complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l quality -d "Quality level" -r
-complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l scope -d "Scope level" -r
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l base -d "Base prompt" -r -F
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l agency -d "Agency level" -r -F
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l quality -d "Quality level" -r -F
+complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l scope -d "Scope level" -r -F
 complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l modifier -d "Custom modifier" -r -F
 complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l readonly -d "Prevent file modifications"
 complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l context-pacing -d "Include context pacing prompt"
@@ -356,10 +365,10 @@ complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l append-syste
 complete -c claude-mode -n "__fish_seen_subcommand_from inspect" -l help -d "Show help"
 
 # Main options
-complete -c claude-mode -l base -d "Base prompt" -r
-complete -c claude-mode -l agency -d "Agency level" -r
-complete -c claude-mode -l quality -d "Quality level" -r
-complete -c claude-mode -l scope -d "Scope level" -r
+complete -c claude-mode -l base -d "Base prompt" -r -F
+complete -c claude-mode -l agency -d "Agency level" -r -F
+complete -c claude-mode -l quality -d "Quality level" -r -F
+complete -c claude-mode -l scope -d "Scope level" -r -F
 complete -c claude-mode -l modifier -d "Custom modifier" -r -F
 complete -c claude-mode -l readonly -d "Prevent file modifications"
 complete -c claude-mode -l context-pacing -d "Include context pacing prompt"
